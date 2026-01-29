@@ -13,4 +13,3 @@ declare module 'postcss-pxtorem' {
   function pxtorem(options?: Options): any
   export = pxtorem
 }
-
