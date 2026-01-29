@@ -47,20 +47,23 @@ img {
     max-width: 640px;
   }
 
-  // 限制所有 fixed 定位的元素
+  // 限制 van-nav-bar 的 fixed 定位
   .van-nav-bar,
-  .van-tabbar,
-  .van-popup,
-  .van-overlay,
-  .van-toast,
-  [class*='van-'][style*='fixed'] {
+  .van-nav-bar--fixed {
     max-width: 640px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;
   }
 
-  // 特殊处理 van-nav-bar 的 fixed 定位
-  .van-nav-bar--fixed {
+  // 限制 van-tabbar 的 fixed 定位
+  .van-tabbar {
+    max-width: 640px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+  }
+
+  // 限制 van-overlay 遮罩层
+  .van-overlay {
     max-width: 640px !important;
     left: 50% !important;
     transform: translateX(-50%) !important;

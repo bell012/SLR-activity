@@ -37,7 +37,8 @@ service.interceptors.response.use(
     if (res.code !== 200 && res.code !== 0) {
       showToast({
         message: res.message || '请求失败',
-        position: 'top'
+        position: 'top',
+        teleport: '#app'
       })
       return Promise.reject(new Error(res.message || '请求失败'))
     }
@@ -70,7 +71,8 @@ service.interceptors.response.use(
 
     showToast({
       message,
-      position: 'top'
+      position: 'top',
+      teleport: '#app'
     })
 
     return Promise.reject(error)

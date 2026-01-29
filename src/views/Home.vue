@@ -22,6 +22,8 @@
         <van-button type="warning" block :loading="loginLoading" @click="handleLoginRequest">
           登录请求示例
         </van-button>
+
+        <div @click="handleBtn">按钮</div>
       </div>
     </div>
   </div>
@@ -35,6 +37,13 @@ import { userApi, testApi } from '@/api'
 const getLoading = ref(false)
 const postLoading = ref(false)
 const loginLoading = ref(false)
+
+const handleBtn = () => {
+  showToast({
+    message: '按钮点击成功！',
+    position: 'top'
+  })
+}
 
 // GET 请求示例
 const handleGetRequest = async () => {
