@@ -32,7 +32,12 @@ export default [
       'no-debugger': process.env.NODE_ENV === 'production' ? 'warn' : 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       '@typescript-eslint/no-unused-vars': 'warn',
-      'prettier/prettier': 'error'
+      'prettier/prettier': [
+        'error',
+        {
+          endOfLine: 'auto'
+        }
+      ]
     }
   },
   {
@@ -57,7 +62,12 @@ export default [
       'vue/first-attribute-linebreak': 'off',
       'vue/html-closing-bracket-newline': 'off',
       'vue/html-indent': 'off',
-      'prettier/prettier': 'error'
+      'prettier/prettier': [
+        'error',
+        {
+          endOfLine: 'auto'
+        }
+      ]
     }
   },
   {
