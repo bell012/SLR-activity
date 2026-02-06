@@ -62,6 +62,8 @@ export default [
       'vue/first-attribute-linebreak': 'off',
       'vue/html-closing-bracket-newline': 'off',
       'vue/html-indent': 'off',
+      'vue/html-self-closing': 'off',
+      'vue/singleline-html-element-content-newline': 'off',
       'prettier/prettier': [
         'error',
         {

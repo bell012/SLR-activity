@@ -9,6 +9,14 @@ const routes: Array<RouteRecordRaw> = [
     meta: {
       title: '首页'
     }
+  },
+  {
+    path: '/ticket',
+    name: 'Ticket',
+    component: () => import('@/views/ticket/index.vue'),
+    meta: {
+      title: '票卷'
+    }
   }
 ]
 
