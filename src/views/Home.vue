@@ -23,16 +23,16 @@
           登录请求示例
         </van-button>
 
-        <div @click="handleBtn">按钮</div>
+        <div @click="handleBtn">按钮.</div>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { testApi, userApi } from '@/api'
+import { closeToast, showLoadingToast, showToast } from 'vant'
 import { ref } from 'vue'
-import { showToast, showLoadingToast, closeToast } from 'vant'
-import { userApi, testApi } from '@/api'
 
 const getLoading = ref(false)
 const postLoading = ref(false)
