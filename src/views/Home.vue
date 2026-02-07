@@ -22,8 +22,10 @@
         <van-button type="warning" block :loading="loginLoading" @click="handleLoginRequest">
           登录请求示例
         </van-button>
-
-        <div @click="handleBtn">按钮.</div>
+        <van-button type="warning" block :loading="loginLoading" @click="handleCheckIn">
+          进入签到页面
+        </van-button>
+        <div @click="handleBtn">按钮</div>
       </div>
     </div>
   </div>
@@ -45,6 +47,9 @@ const handleBtn = () => {
   })
 }
 
+const handleCheckIn = () => {
+  window.location.href = '/check-in'
+}
 // GET 请求示例
 const handleGetRequest = async () => {
   getLoading.value = true

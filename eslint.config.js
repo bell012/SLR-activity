@@ -23,8 +23,11 @@ export default [
         document: 'readonly',
         navigator: 'readonly',
         window: 'readonly',
+        PointerEvent: 'readonly',
         console: 'readonly',
-        process: 'readonly'
+        process: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly'
       }
     },
     rules: {
@@ -53,7 +56,13 @@ export default [
         sourceType: 'module'
       },
       globals: {
-        console: 'readonly'
+        console: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        window: 'readonly',
+        PointerEvent: 'readonly',
+        requestAnimationFrame: 'readonly',
+        cancelAnimationFrame: 'readonly'
       }
     },
     rules: {

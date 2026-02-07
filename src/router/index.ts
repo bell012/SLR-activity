@@ -1,5 +1,5 @@
-import { createRouter, createWebHistory } from 'vue-router'
 import type { RouteRecordRaw } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router'
 
 const routes: Array<RouteRecordRaw> = [
   {
@@ -16,6 +16,14 @@ const routes: Array<RouteRecordRaw> = [
     component: () => import('@/views/ticket/index.vue'),
     meta: {
       title: '票卷'
+    }
+  },
+  {
+    path: '/check-in',
+    name: 'CheckIn',
+    component: () => import('@/views/checkin/CheckIn.vue'),
+    meta: {
+      title: '每日签到'
     }
   }
 ]

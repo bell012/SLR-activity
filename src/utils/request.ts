@@ -1,7 +1,7 @@
-import axios from 'axios'
-import type { AxiosInstance, AxiosResponse } from 'axios'
-import { showToast } from 'vant'
 import { useUserStore } from '@/store/modules/user'
+import type { AxiosInstance, AxiosResponse } from 'axios'
+import axios from 'axios'
+import { showToast } from 'vant'
 
 // 创建 axios 实例
 const service: AxiosInstance = axios.create({
