@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import ticketApi from './ticket'
 
 /**
  * 用户相关接口
@@ -54,3 +55,6 @@ export const testApi = {
     })
   }
 }
+
+// 活动列表
+export { ticketApi }

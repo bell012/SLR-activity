@@ -25,6 +25,11 @@
         <van-button type="warning" block :loading="loginLoading" @click="handleCheckIn">
           进入签到页面
         </van-button>
+
+        <van-button type="primary" block :loading="ticketLoading" @click="handleTicketRequest">
+          测试活动列表接口
+        </van-button>
+
         <div @click="handleBtn">按钮</div>
       </div>
     </div>
@@ -32,13 +37,14 @@
 </template>
 
 <script setup lang="ts">
-import { testApi, userApi } from '@/api'
+import { testApi, userApi, ticketApi } from '@/api'
 import { closeToast, showLoadingToast, showToast } from 'vant'
 import { ref } from 'vue'
 
 const getLoading = ref(false)
 const postLoading = ref(false)
 const loginLoading = ref(false)
+const ticketLoading = ref(false)
 
 const handleBtn = () => {
   showToast({
@@ -132,6 +138,31 @@ const handleLoginRequest = async () => {
     console.error('登录请求失败：', error)
   } finally {
     loginLoading.value = false
+  }
+}
+
+// 活动列表测试
+const handleTicketRequest = async () => {
+  ticketLoading.value = true
+  showLoadingToast({
+    message: '加载中...',
+    forbidClick: true,
+    duration: 0
+  })
+
+  try {
+    const response = await ticketApi.getMbTicketList({})
+    closeToast()
+    showToast({
+      message: '活动列表接口请求成功！',
+      position: 'top'
+    })
+    console.log('活动列表', response)
+  } catch (error) {
+    closeToast()
+    console.error('活动列表', error)
+  } finally {
+    ticketLoading.value = false
   }
 }
 </script>

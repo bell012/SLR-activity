@@ -2,13 +2,24 @@ import { useUserStore } from '@/store/modules/user'
 import type { AxiosInstance, AxiosResponse } from 'axios'
 import axios from 'axios'
 import { showToast } from 'vant'
+import { v4 as uuidv4 } from 'uuid'
+import { StringExtension } from './string-extension'
+import { AESUtils } from './encrypt'
+import { noEncryptPaths, SITE } from './crypto-config'
 
 // 创建 axios 实例
 const service: AxiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || '/api',
   timeout: 15000,
   headers: {
-    'Content-Type': 'application/json;charset=UTF-8'
+    'Content-Type': 'application/json;charset=UTF-8',
+    site: SITE,
+    TraceId: '30049825-9366-4709-AA4A-14E40D8AF5E0',
+    channelId: '1',
+    languageCode: 'eng',
+    bundleId: '1.0.0',
+    Authorization: 'e8010d8559cf9550cab9bfe261d1b5c0',
+    'X-Auth-Token': 'dc915f01-5fe4-4fc8-957c-e57b3ca13081'
   }
 })
 
@@ -16,10 +27,36 @@ const service: AxiosInstance = axios.create({
 service.interceptors.request.use(
   (config) => {
     const userStore = useUserStore()
-    // 添加 token
+    const uuid = uuidv4()
+    config.headers.uuid = uuid
     if (userStore.token) {
       config.headers.Authorization = `Bearer ${userStore.token}`
     }
+    if (!noEncryptPaths.includes(config.url || '')) {
+      try {
+        const encryptKey = StringExtension.tail16(uuid)
+        if (config.method?.toUpperCase() === 'GET') {
+          if (config.params) {
+            config.params = {
+              data: AESUtils.encryptAES(JSON.stringify(config.params), encryptKey)
+            }
+          }
+        } else if (config.method?.toUpperCase() === 'POST') {
+          // eslint-disable-next-line no-undef
+          if (!(config.data instanceof FormData)) {
+            if (config.data) {
+              config.data = {
+                data: AESUtils.encryptAES(JSON.stringify(config.data), encryptKey)
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error('请求加密失败:', e)
+      }
+    }
+
+    console.log('请求头:', config.headers, '路径:', config.url)
     return config
   },
   (error) => {
@@ -31,10 +68,24 @@ service.interceptors.request.use(
 // 响应拦截器
 service.interceptors.response.use(
   (response: AxiosResponse) => {
-    const res = response.data
+    if (!noEncryptPaths.includes(response.config.url || '')) {
+      const uuid = response.config.headers.uuid as string
+      console.log('UUID:', uuid)
 
-    // 根据后端返回的状态码进行处理
-    if (res.code !== 200 && res.code !== 0) {
+      try {
+        if (typeof response.data === 'string') {
+          const encryptKey = StringExtension.tail16(uuid)
+          response.data = AESUtils.decryptAES(response.data, encryptKey)
+        }
+      } catch (e) {
+        console.error('错误详情:', e)
+      }
+    }
+    const res = response.data
+    const isSuccess =
+      res.code === 200 || res.code === 0 || res.code === 'C2' || res.success === true
+
+    if (!isSuccess) {
       showToast({
         message: res.message || '请求失败',
         position: 'top',
