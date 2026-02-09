@@ -17,3 +17,49 @@ defineProps<{
     </div>
   </div>
 </template>
+
+<style lang="scss" scoped>
+.bonus-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 7px;
+  margin-top: 10px;
+}
+
+.bonus-card {
+  width: 100%;
+  min-height: 51.62px;
+  background: #ffdfe1;
+  border: 2px solid #ffffff;
+  border-radius: 12px;
+  padding: 7.5px 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  box-sizing: border-box;
+}
+
+.ticket {
+  width: 45.38px;
+  height: 37px;
+}
+
+.bonus-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2.5px;
+}
+
+.bonus-day {
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  color: #d62847;
+}
+
+.bonus-amount {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: #d62847;
+}
+</style>
