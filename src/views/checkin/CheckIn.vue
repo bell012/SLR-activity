@@ -3,10 +3,10 @@ import { ref } from 'vue'
 import { useCheckInSlider } from './composables/useCheckInSlider'
 
 import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
-import CheckInCardDeck from './components/CheckInCardDeck.vue'
-import CheckInBonusGrid from './components/CheckInBonusGrid.vue'
 import checkinGiftBox from '@/assets/svg/checkin/checkin-gift-box.svg'
-
+import rulesIcon from '@/assets/svg/checkin/rules-icon.svg'
+import CheckInBonusGrid from './components/CheckInBonusGrid.vue'
+import CheckInCardDeck from './components/CheckInCardDeck.vue'
 const SLIDE_DURATION = 360
 
 const bonusList = ref([
@@ -49,7 +49,7 @@ const {
         </button>
       </header>
 
-      <h1 class="title">CHECK-IN EVENT</h1>
+      <div class="title">CHECK-IN EVENT</div>
       <p class="subtitle">Check in daily and meet the requiements to claim rewards</p>
 
       <CheckInCardDeck
@@ -68,13 +68,17 @@ const {
       <section class="bonus-section">
         <div class="bonus-header">
           <img :src="checkinGiftBox" alt="gift box" class="gift-icon" />
-          <span class="bonus-title">CHECK-IN BONUS</span>
-          <div class="rules">
-            <span class="rules-text">Check-In Rules</span>
-            <span class="rules-arrow" aria-hidden="true" />
+          <div class="title-container">
+            <div class="title-wrapper">
+              <span class="bonus-title">CHECK-IN BONUS</span>
+              <div class="rules">
+                <span class="rules-text">Check-In Rules</span>
+                <img :src="rulesIcon" alt="rules" class="rules-icon" />
+              </div>
+            </div>
+            <p class="bonus-subtitle">Cumulative check-ins earn more rewards</p>
           </div>
         </div>
-        <p class="bonus-subtitle">Cumulative check-ins earn more rewards</p>
 
         <CheckInBonusGrid :list="bonusList" />
       </section>
@@ -98,7 +102,6 @@ const {
   margin-top: 44px;
   padding: 22px 18px 20px;
   border-radius: 34px 34px 0 0;
-  background: linear-gradient(180deg, #ff6c69 0%, #ffc1bf 100%);
   overflow: hidden;
   isolation: isolate;
 }
@@ -110,6 +113,17 @@ const {
   background-position: center top;
   opacity: 1;
   z-index: 0;
+}
+
+.modal-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.2;
+  background: linear-gradient(0deg, #ff6c69 0%, #ffc1bf 100%);
+  // inset: 30% 0 0 0;
+  z-index: 1;
+  pointer-events: none;
 }
 
 .check-in-modal::before {
@@ -189,10 +203,13 @@ const {
   position: relative;
   margin-top: 10px;
   font-family: 'AaHouDiHei', 'Inter', sans-serif;
+  font-weight: 400;
   font-size: 30px;
+  font-style: normal;
   color: #ffffff;
   z-index: 2;
-  -webkit-text-stroke: 6px #ffa6a0;
+  -webkit-text-stroke: 2px #ffa6a0;
+
   text-shadow: none;
 }
 
@@ -218,13 +235,28 @@ const {
 }
 
 .gift-icon {
-  width: 42.38px;
-  height: 44.62px;
+  width: 42.33px;
+  height: 44.67px;
+}
+.title-container {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+.title-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .bonus-title {
   font-family: 'AaHouDiHei', 'Inter', sans-serif;
   font-size: 17px;
+  font-weight: 400;
+  font-style: normal;
+  color: #ffffff;
   text-transform: uppercase;
   background: linear-gradient(90deg, #830404 0%, #000000 100%);
   -webkit-background-clip: text;
@@ -232,7 +264,6 @@ const {
 }
 
 .rules {
-  margin-left: auto;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -244,33 +275,10 @@ const {
   color: #ff002d;
 }
 
-.rules-arrow {
+.rules-icon {
   width: 15px;
   height: 15px;
-  border-radius: 999px;
-  border: 1px solid #ff002d;
-  background: rgba(255, 255, 255, 0.2);
-  position: relative;
-}
-
-.rules-arrow::before,
-.rules-arrow::after {
-  content: '';
-  position: absolute;
-  width: 1.5px;
-  height: 6.25px;
-  background: #ffffff;
-  left: 6.5px;
-  top: 4px;
-}
-
-.rules-arrow::before {
-  transform: rotate(-45deg);
-}
-
-.rules-arrow::after {
-  transform: rotate(45deg);
-  top: 7px;
+  display: block;
 }
 
 .bonus-subtitle {

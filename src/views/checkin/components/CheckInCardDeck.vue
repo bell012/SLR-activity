@@ -1,7 +1,15 @@
 <script setup lang="ts">
-import checkinCardMain from '@/assets/svg/checkin/checkin-card-main.svg'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-defineProps<{
+import checkinCardMain from '@/assets/svg/checkin/checkin-card-main.svg'
+import checkinVectorDivider from '@/assets/svg/checkin/checkin-vector-divider.svg'
+import type { AnimationItem } from 'lottie-web'
+import lottie from 'lottie-web'
+
+import cardFlipAnim from '@/assets/lottie/checkin/checkin-card-flip.json'
+import cardIdleAnim from '@/assets/lottie/checkin/checkin-card-idle.json'
+
+const props = defineProps<{
   current: { day: string }
   prev: { day: string } | null
   next: { day: string } | null
@@ -16,6 +24,76 @@ const emit = defineEmits<{
   pointerup: [PointerEvent]
   pointercancel: []
 }>()
+
+// eslint-disable-next-line no-undef
+const cardLottieEl = ref<HTMLDivElement | null>(null)
+const isFlipping = ref(false)
+const isFlipped = ref(false)
+let lottieIns: AnimationItem | null = null
+const DAY_TEXT_LAYER_NAME = 'dayText'
+
+const applyLottieText = (text: string) => {
+  if (!lottieIns) return
+  const renderer = lottieIns.renderer as any
+  const elements = renderer?.elements || []
+  const textLayer = elements.find(
+    (el: any) => el?.data?.ty === 5 && el?.data?.nm === DAY_TEXT_LAYER_NAME
+  )
+  textLayer?.updateDocumentData?.({ t: text })
+}
+
+const bindTextOnLoad = () => {
+  if (!lottieIns) return
+  lottieIns.addEventListener('DOMLoaded', () => {
+    applyLottieText(props.current.day)
+  })
+}
+
+const playIdle = () => {
+  if (!cardLottieEl.value || isFlipped.value) return
+  lottieIns?.destroy()
+  lottieIns = lottie.loadAnimation({
+    container: cardLottieEl.value,
+    renderer: 'svg',
+    loop: true,
+    autoplay: true,
+    animationData: cardIdleAnim
+  })
+  bindTextOnLoad()
+}
+
+const playFlip = () => {
+  if (!cardLottieEl.value || isFlipping.value || isFlipped.value) return
+  isFlipping.value = true
+  lottieIns?.destroy()
+  lottieIns = lottie.loadAnimation({
+    container: cardLottieEl.value,
+    renderer: 'svg',
+    loop: false,
+    autoplay: true,
+    animationData: cardFlipAnim
+  })
+  bindTextOnLoad()
+  lottieIns.addEventListener('complete', () => {
+    isFlipping.value = false
+    isFlipped.value = true
+    lottieIns?.destroy()
+    lottieIns = null
+  })
+}
+
+onMounted(playIdle)
+onBeforeUnmount(() => lottieIns?.destroy())
+
+watch(
+  () => props.current.day,
+  (value) => {
+    isFlipped.value = false
+    isFlipping.value = false
+    playIdle()
+    applyLottieText(value)
+  }
+)
 </script>
 
 <template>
@@ -35,20 +113,61 @@ const emit = defineEmits<{
       class="card card-left"
       :style="{ backgroundImage: `url(${checkinCardMain})` }"
       @click="emit('prev')"
-    />
-    <div class="card card-center" :style="{ backgroundImage: `url(${checkinCardMain})` }">
-      <span class="card-day">{{ current.day }}</span>
+    >
+      <span class="card-day">{{ prev.day }}</span>
+    </div>
+    <div
+      class="card card-center"
+      :style="{ backgroundImage: isFlipped ? `url(${checkinCardMain})` : '' }"
+      @click="playFlip"
+    >
+      <div v-show="!isFlipped" ref="cardLottieEl" class="card-lottie" />
+      <img
+        v-show="isFlipped"
+        :src="checkinVectorDivider"
+        alt=""
+        aria-hidden="true"
+        class="card-divider"
+      />
+
+      <!-- <span class="card-day">{{ current.day }}</span> -->
     </div>
     <div
       v-if="next"
       class="card card-right"
       :style="{ backgroundImage: `url(${checkinCardMain})` }"
       @click="emit('next')"
-    />
+    >
+      <span class="card-day">{{ next.day }}</span>
+    </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
+.card-lottie {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  transform: scale(1.03);
+  transform-origin: center;
+}
+
+.card-divider {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 58px;
+  height: 49px;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  pointer-events: none;
+}
+.card-day {
+  position: relative;
+  z-index: 2;
+}
+
 .card-deck {
   position: relative;
   width: 100%;
@@ -63,6 +182,9 @@ const emit = defineEmits<{
   background-size: contain;
   background-repeat: no-repeat;
   background-position: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition:
     left 0.36s ease,
     top 0.36s ease,
@@ -74,7 +196,7 @@ const emit = defineEmits<{
 .card-left {
   width: 46.3%;
   height: 91%;
-  left: -27.1%;
+  left: -30.1%;
   top: 9%;
   opacity: 0.9;
 }
@@ -84,27 +206,25 @@ const emit = defineEmits<{
   height: 100%;
   left: 24.5%;
   top: 0;
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
+  transform: scale(1.02);
+  transform-origin: center;
   z-index: 2;
 }
 
-.card-center .card-day {
-  margin-top: 12%;
+.card .card-day {
   font-family: 'Inter', sans-serif;
   font-size: 25px;
   font-weight: 700;
   background: linear-gradient(180deg, #ffffff 0%, #ffe5d2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  text-shadow: 0 4px 4px #f4a464;
+  // text-shadow: 0 4px 4px #f4a464;
 }
 
 .card-right {
   width: 46.3%;
   height: 91%;
-  left: 80.8%;
+  left: 83.8%;
   top: 9%;
   opacity: 0.9;
 }
@@ -151,3 +271,6 @@ const emit = defineEmits<{
   transition: none;
 }
 </style>
+
+<!-- checkin-card-idle.json（默认跳动）
+checkin-card-flip.json（点击翻牌） -->

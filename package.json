@@ -41,6 +41,7 @@
   "dependencies": {
     "amfe-flexible": "^2.2.1",
     "axios": "^1.13.4",
+    "lottie-web": "^5.13.0",
     "pinia": "^3.0.4",
     "postcss-pxtorem": "^6.1.0",
     "sass": "^1.97.3",
