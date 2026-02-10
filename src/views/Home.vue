@@ -37,7 +37,7 @@
 </template>
 
 <script setup lang="ts">
-import { testApi, userApi, ticketApi } from '@/api'
+import { testApi, ticketApi, userApi } from '@/api'
 import { closeToast, showLoadingToast, showToast } from 'vant'
 import { ref } from 'vue'
 

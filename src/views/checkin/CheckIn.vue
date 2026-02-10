@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { checkinApi } from '@/api'
-import type { MbSignResult } from '@/api/checkin'
-import { onMounted, ref } from 'vue'
+import type { MbHistorySignResult, MbSignResult, ReceiveRewardResult } from '@/api/checkin'
+import { showToast } from 'vant'
+import { onMounted, onUnmounted, ref } from 'vue'
 import { useCheckInSlider } from './composables/useCheckInSlider'
 
 import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
 import checkinGiftBox from '@/assets/svg/checkin/checkin-gift-box.svg'
+import checkinTopScrollOverlay from '@/assets/svg/checkin/checkin-top-scroll-overlay.svg'
 import rulesIcon from '@/assets/svg/checkin/rules-icon.svg'
 import CheckInBonusGrid from './components/CheckInBonusGrid.vue'
 import CheckInCardDeck from './components/CheckInCardDeck.vue'
@@ -38,23 +40,79 @@ const {
   onPointerCancel
 } = slider
 
-const activityId = 1
-const verifyCode = ''
+const activityId = 29
+const verifyCode = '123456'
 const signInfo = ref<MbSignResult | null>(null)
+const historySignInfo = ref<MbHistorySignResult | null>(null)
+const rewardInfo = ref<ReceiveRewardResult | null>(null)
+
+const showTopOverlay = ref(false)
+
+const handleScroll = () => {
+  showTopOverlay.value = window.scrollY > 10
+}
 
 onMounted(async () => {
+  // 会员签到信息
   try {
     const response = await checkinApi.mbSign({ activityId, verifyCode })
-    signInfo.value = response.data.result
+    signInfo.value = response.result
+    if (response.result == null) {
+      showToast({
+        message: response.message || '活动不存在',
+        position: 'top'
+      })
+    }
     console.log('mbSign 响应:', response)
   } catch (error) {
     console.error('mbSign 失败:', error)
   }
+
+  // // 会员历史签到信息
+  try {
+    const response = await checkinApi.mbHistorySign({ activityId, verifyCode })
+    historySignInfo.value = response.result
+    if (response.result == null) {
+      showToast({
+        message: response.message || '请联系客服',
+        position: 'top'
+      })
+    }
+    console.log('mbHistorySign 响应:', response)
+  } catch (error) {
+    console.error('mbHistorySign 失败:', error)
+  }
+  // 领取奖励
+  try {
+    const response = await checkinApi.receiveReward({ activityId, verifyCode })
+    rewardInfo.value = response.result
+    if (response.result == null) {
+      showToast({
+        message: response.message || '活动不存在',
+        position: 'top'
+      })
+    }
+    console.log('receiveReward 响应:', response)
+  } catch (error) {
+    console.error('receiveReward 失败:', error)
+  }
+
+  window.addEventListener('scroll', handleScroll)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('scroll', handleScroll)
 })
 </script>
 
 <template>
   <div class="check-in-page">
+    <img
+      :src="checkinTopScrollOverlay"
+      class="top-scroll-overlay"
+      :class="{ 'is-visible': showTopOverlay }"
+      alt=""
+    />
     <div class="check-in-modal">
       <div class="modal-bg" :style="{ backgroundImage: `url(${checkinBg})` }" />
 
@@ -302,5 +360,20 @@ onMounted(async () => {
   font-family: 'Inter', sans-serif;
   font-size: 12px;
   color: #810404;
+}
+
+.top-scroll-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 99;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+
+  &.is-visible {
+    opacity: 1;
+  }
 }
 </style>

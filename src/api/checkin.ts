@@ -167,15 +167,24 @@ export interface ReceiveRewardResult {
 }
 
 export const receiveReward = (params: { activityId: number; verifyCode: string }) => {
-  return request.post<ApiResponse<ReceiveRewardResult>>('/activity/checkin/receiveReward', params)
+  return request.post<ApiResponse<ReceiveRewardResult>, ApiResponse<ReceiveRewardResult>>(
+    '/activity/checkin/receiveReward',
+    params
+  )
 }
 
 export const mbSign = (params: { activityId: number; verifyCode: string }) => {
-  return request.post<ApiResponse<MbSignResult>>('/activity/checkin/mbSign', params)
+  return request.post<ApiResponse<MbSignResult>, ApiResponse<MbSignResult>>(
+    '/activity/checkin/mbSign',
+    params
+  )
 }
 
 export const mbHistorySign = (params: { activityId: number; verifyCode: string }) => {
-  return request.post<ApiResponse<MbHistorySignResult>>('/activity/checkin/mbHistorySign', params)
+  return request.post<ApiResponse<MbHistorySignResult>, ApiResponse<MbHistorySignResult>>(
+    '/activity/checkin/mbHistorySign',
+    params
+  )
 }
 
 export default {
