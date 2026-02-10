@@ -23,7 +23,7 @@
         </div>
       </div>
 
-      <div class="smash-btn">
+      <div class="smash-btn" @click="showSmallPopup">
         <span class="btn-text">Smash</span>
       </div>
     </div>
@@ -35,12 +35,88 @@
 
     <!-- 中奖列表 -->
     <Wins />
+
+    <div class="test-buttons">
+      <button @click="showSmallPopup">显示小弹窗</button>
+      <button @click="showBigPopup">显示大弹窗</button>
+    </div>
+
+    <!-- 小弹窗 -->
+    <PopupSmall
+      :visible="smallPopupVisible"
+      subtitle="You've Earned Bonus"
+      amount="100.00"
+      button-text="NEXT ROUND"
+      @close="smallPopupVisible = false"
+      @action="handleSmallAction"
+    />
+
+    <!-- 大弹窗 -->
+    <PopupBig
+      :visible="bigPopupVisible"
+      subtitle="You've Earned Bonus"
+      :rewards="rewardsList"
+      button-text="USE NOW"
+      @close="bigPopupVisible = false"
+      @action="handleBigAction"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import { ref } from 'vue'
 import Progress from '../progress.vue'
 import Wins from '../wins.vue'
+import PopupSmall from '../PopupSmall.vue'
+import PopupBig from '../PopupBig.vue'
+
+const smallPopupVisible = ref(false)
+const bigPopupVisible = ref(false)
+
+const rewardsList = ref([
+  {
+    icon: '/src/static/ticket/card_jindan.png',
+    description: 'Register and get ₱3-₱888 bonus!',
+    quantity: 1,
+    bgColor: '#FEE554'
+  },
+  {
+    icon: '/src/static/ticket/card_zhuanpan.png',
+    description: 'Register and get ₱3-₱888 bonus!',
+    quantity: 10,
+    bgColor: '#FA9CFF'
+  },
+  {
+    icon: '/src/static/ticket/card_hongbao.png',
+    description: 'Register and get ₱3-₱888 bonus!',
+    quantity: 5,
+    bgColor: '#fba1a4'
+  },
+  {
+    icon: '/src/static/ticket/card_xianjin.png',
+    description: 'Register and get ₱3-₱888 bonus!',
+    quantity: 3,
+    bgColor: '#9affb1'
+  }
+])
+
+const showSmallPopup = () => {
+  smallPopupVisible.value = true
+}
+
+const showBigPopup = () => {
+  bigPopupVisible.value = true
+}
+
+const handleSmallAction = () => {
+  console.log('小弹窗按钮点击')
+  smallPopupVisible.value = false
+}
+
+const handleBigAction = () => {
+  console.log('大弹窗按钮点击')
+  bigPopupVisible.value = false
+}
 </script>
 
 <style lang="scss" scoped>
@@ -116,6 +192,34 @@ import Wins from '../wins.vue'
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
+      }
+    }
+  }
+
+  .test-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: center;
+
+    button {
+      padding: 10px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      transition: all 0.3s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      }
+
+      &:active {
+        transform: translateY(0);
       }
     }
   }
