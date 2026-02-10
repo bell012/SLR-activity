@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { checkinApi } from '@/api'
+import { checkinApi, smsApi } from '@/api'
 import type { MbHistorySignResult, MbSignResult, ReceiveRewardResult } from '@/api/checkin'
 import { showToast } from 'vant'
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useCheckInSlider } from './composables/useCheckInSlider'
 
 import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
@@ -11,6 +11,7 @@ import checkinTopScrollOverlay from '@/assets/svg/checkin/checkin-top-scroll-ove
 import rulesIcon from '@/assets/svg/checkin/rules-icon.svg'
 import CheckInBonusGrid from './components/CheckInBonusGrid.vue'
 import CheckInCardDeck from './components/CheckInCardDeck.vue'
+import VerifyPhonePopup from './components/VerifyPhonePopup.vue'
 const SLIDE_DURATION = 360
 
 const bonusList = ref([
@@ -45,6 +46,14 @@ const verifyCode = '123456'
 const signInfo = ref<MbSignResult | null>(null)
 const historySignInfo = ref<MbHistorySignResult | null>(null)
 const rewardInfo = ref<ReceiveRewardResult | null>(null)
+const cardDeckRef = ref<InstanceType<typeof CheckInCardDeck> | null>(null)
+const showVerifyPopup = ref(false)
+const verifyCodeInput = ref('')
+const canResend = ref(false)
+const resendSeconds = ref(0)
+const resendTimer = ref<number | null>(null)
+const isSendingSms = ref(false)
+const phoneNumber = ref('')
 
 const showTopOverlay = ref(false)
 
@@ -52,11 +61,87 @@ const handleScroll = () => {
   showTopOverlay.value = window.scrollY > 10
 }
 
+const handleCenterClick = () => {
+  const needVerify = rewardInfo.value?.ticket?.completeVerification?.verifyPhone === 1
+  if (needVerify) {
+    showVerifyPopup.value = true
+    return
+  }
+  cardDeckRef.value?.playFlip()
+}
+
+const handleResendCode = () => {
+  if (!canResend.value || isSendingSms.value) return
+  void sendSmsCode()
+}
+
+const handleVerifySubmit = () => {
+  // TODO: 调用校验验证码接口
+  showVerifyPopup.value = false
+  cardDeckRef.value?.playFlip()
+}
+
+const startResendCountdown = (seconds = 60) => {
+  if (resendTimer.value) {
+    window.clearInterval(resendTimer.value)
+  }
+  resendSeconds.value = seconds
+  canResend.value = false
+  resendTimer.value = window.setInterval(() => {
+    resendSeconds.value -= 1
+    if (resendSeconds.value <= 0) {
+      if (resendTimer.value) {
+        window.clearInterval(resendTimer.value)
+      }
+      resendTimer.value = null
+      canResend.value = true
+      resendSeconds.value = 0
+    }
+  }, 1000)
+}
+
+const sendSmsCode = async () => {
+  if (!phoneNumber.value) {
+    showToast({ message: '手机号缺失', position: 'top' })
+    canResend.value = true
+    return
+  }
+  isSendingSms.value = true
+  canResend.value = false
+  resendSeconds.value = 0
+  try {
+    await smsApi.sendSmsCode({ phone: phoneNumber.value })
+    startResendCountdown(60)
+  } catch (error) {
+    showToast({ message: '发送验证码失败', position: 'top' })
+    canResend.value = true
+    console.error('发送验证码失败:', error)
+  } finally {
+    isSendingSms.value = false
+  }
+}
+
+watch(
+  () => showVerifyPopup.value,
+  (visible) => {
+    if (visible) {
+      verifyCodeInput.value = ''
+      canResend.value = false
+      resendSeconds.value = 0
+      void sendSmsCode()
+    } else if (resendTimer.value) {
+      window.clearInterval(resendTimer.value)
+      resendTimer.value = null
+    }
+  }
+)
+
 onMounted(async () => {
   // 会员签到信息
   try {
     const response = await checkinApi.mbSign({ activityId, verifyCode })
     signInfo.value = response.result
+    phoneNumber.value = response.result?.phone ?? ''
     if (response.result == null) {
       showToast({
         message: response.message || '活动不存在',
@@ -101,6 +186,10 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  if (resendTimer.value) {
+    window.clearInterval(resendTimer.value)
+    resendTimer.value = null
+  }
   window.removeEventListener('scroll', handleScroll)
 })
 </script>
@@ -127,6 +216,7 @@ onUnmounted(() => {
       <p class="subtitle">Check in daily and meet the requiements to claim rewards</p>
 
       <CheckInCardDeck
+        ref="cardDeckRef"
         :current="currentCard"
         :prev="prevCard"
         :next="nextCard"
@@ -134,6 +224,7 @@ onUnmounted(() => {
         :is-resetting="isResetting"
         @prev="slide('prev')"
         @next="slide('next')"
+        @center-click="handleCenterClick"
         @pointerdown="onPointerDown"
         @pointerup="onPointerUp"
         @pointercancel="onPointerCancel"
@@ -156,6 +247,17 @@ onUnmounted(() => {
 
         <CheckInBonusGrid :list="bonusList" />
       </section>
+
+      <VerifyPhonePopup
+        v-model:show="showVerifyPopup"
+        v-model:code="verifyCodeInput"
+        :phone="phoneNumber"
+        :can-resend="canResend"
+        :seconds-left="resendSeconds"
+        :is-sending="isSendingSms"
+        @resend="handleResendCode"
+        @submit="handleVerifySubmit"
+      />
     </div>
   </div>
 </template>

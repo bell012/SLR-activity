@@ -12,6 +12,7 @@ export interface MbSignResult {
   signDays: number
   betAmount: number
   rechargeAmount: number
+  phone?: string
   todaySignAmount?: number
   historySign: any[]
   startDate?: number

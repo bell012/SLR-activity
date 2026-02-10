@@ -20,6 +20,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   prev: []
   next: []
+  centerClick: []
   pointerdown: [PointerEvent]
   pointerup: [PointerEvent]
   pointercancel: []
@@ -57,6 +58,10 @@ const bindTextOnLoad = () => {
   lottieIns.addEventListener('DOMLoaded', () => {
     applyLottieText(props.current.day)
   })
+}
+
+const onCenterClick = () => {
+  emit('centerClick')
 }
 
 const playIdle = () => {
@@ -104,6 +109,8 @@ watch(
     applyLottieText(value)
   }
 )
+
+defineExpose({ playFlip })
 </script>
 
 <template>
@@ -129,7 +136,7 @@ watch(
     <div
       class="card card-center"
       :style="{ backgroundImage: isFlipped ? `url(${checkinCardMain})` : '' }"
-      @click="playFlip"
+      @click="onCenterClick"
     >
       <div v-show="!isFlipped" ref="cardLottieEl" class="card-lottie" :style="lottieStyle" />
       <img

@@ -1,6 +1,7 @@
 import request from '@/utils/request'
 import ticketApi from './ticket'
 import checkinApi from './checkin'
+import smsApi from './sms'
 
 /**
  * 用户相关接口
@@ -58,4 +59,4 @@ export const testApi = {
 }
 
 // 活动列表
-export { ticketApi, checkinApi }
+export { ticketApi, checkinApi, smsApi }
