@@ -19,8 +19,8 @@
           POST 请求示例
         </van-button>
 
-        <van-button type="warning" block :loading="loginLoading" @click="handleLoginRequest">
-          登录请求示例
+        <van-button type="warning" block :loading="loginLoading" @click="handleTicket">
+          进入票卷页面
         </van-button>
         <van-button type="warning" block :loading="loginLoading" @click="handleCheckIn">
           进入签到页面
@@ -37,7 +37,8 @@
 </template>
 
 <script setup lang="ts">
-import { testApi, userApi, ticketApi } from '@/api'
+import { testApi, ticketApi } from '@/api'
+import router from '@/router'
 import { closeToast, showLoadingToast, showToast } from 'vant'
 import { ref } from 'vue'
 
@@ -112,33 +113,9 @@ const handlePostRequest = async () => {
   }
 }
 
-// 登录请求示例
-const handleLoginRequest = async () => {
-  loginLoading.value = true
-  showLoadingToast({
-    message: '登录中...',
-    forbidClick: true,
-    duration: 0
-  })
-
-  try {
-    // 模拟登录请求
-    const response = await userApi.login({
-      username: 'demo',
-      password: '123456'
-    })
-    closeToast()
-    showToast({
-      message: '登录请求成功！',
-      position: 'top'
-    })
-    console.log('登录请求结果：', response)
-  } catch (error) {
-    closeToast()
-    console.error('登录请求失败：', error)
-  } finally {
-    loginLoading.value = false
-  }
+// 进入票卷页面
+const handleTicket = async () => {
+  router.push('/ticket')
 }
 
 // 活动列表测试

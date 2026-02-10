@@ -1,48 +1,50 @@
 <template>
-  <div class="ticketBox">
-    <div class="title-section">
-      <img :src="titleImg" alt="title" class="title-img" />
-    </div>
+  <div class="ticket-container">
+    <div class="ticketBox">
+      <div class="title-section">
+        <img :src="titleImg" alt="title" class="title-img" />
+      </div>
 
-    <div class="nav-section">
-      <img :src="btnLeft" alt="left" class="nav-arrow" />
+      <div class="nav-section">
+        <img :src="btnLeft" alt="left" class="nav-arrow" />
 
-      <div class="icon-list">
-        <div
-          v-for="(item, index) in iconList"
-          :key="index"
-          class="icon-item"
-          :class="{ active: activeIndex === index }"
-          @click="handleIconClick(index)"
-        >
-          <img :src="item.icon" :alt="item.name" class="icon-img" />
+        <div class="icon-list">
+          <div
+            v-for="(item, index) in iconList"
+            :key="index"
+            class="icon-item"
+            :class="{ active: activeIndex === index }"
+            @click="handleIconClick(index)"
+          >
+            <img :src="item.icon" :alt="item.name" class="icon-img" />
+          </div>
+        </div>
+
+        <img :src="btnRight" alt="right" class="nav-arrow" />
+      </div>
+
+      <div class="text-section">Register and get ₱3-₱888 bonus!</div>
+
+      <!-- 时间倒计时 -->
+      <div class="time-section">
+        <img :src="alarmImg" alt="alarm" class="alarm-icon" />
+        <span class="time-label">Time Left</span>
+        <div class="time-numbers">
+          <span class="time-num">9</span>
+          <span class="time-num">9</span>
+          <span class="time-separator">:</span>
+          <span class="time-num">9</span>
+          <span class="time-num">9</span>
+          <span class="time-separator">:</span>
+          <span class="time-num">9</span>
+          <span class="time-num">9</span>
         </div>
       </div>
 
-      <img :src="btnRight" alt="right" class="nav-arrow" />
-    </div>
-
-    <div class="text-section">Register and get ₱3-₱888 bonus!</div>
-
-    <!-- 时间倒计时 -->
-    <div class="time-section">
-      <img :src="alarmImg" alt="alarm" class="alarm-icon" />
-      <span class="time-label">Time Left</span>
-      <div class="time-numbers">
-        <span class="time-num">9</span>
-        <span class="time-num">9</span>
-        <span class="time-separator">:</span>
-        <span class="time-num">9</span>
-        <span class="time-num">9</span>
-        <span class="time-separator">:</span>
-        <span class="time-num">9</span>
-        <span class="time-num">9</span>
+      <!-- 组件切换 -->
+      <div class="component-section">
+        <component :is="currentComponent" />
       </div>
-    </div>
-
-    <!-- 组件切换 -->
-    <div class="component-section">
-      <component :is="currentComponent" />
     </div>
   </div>
 </template>
@@ -94,10 +96,23 @@ const handleIconClick = (index: number) => {
 </script>
 
 <style lang="scss" scoped>
-.ticketBox {
-  width: 100%;
+.ticket-container {
   min-height: 100vh;
-  background-color: #342c54;
+  background: #000;
+  padding: env(safe-area-inset-top) 0 0;
+  display: flex;
+  flex-direction: column;
+}
+.ticketBox {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  margin-top: 44px;
+  border-radius: 34px 34px 0 0;
+  background: url('@/static/ticket/BG.png') no-repeat;
+  background-size: 100% 100%;
+  overflow: hidden;
+  isolation: isolate;
   padding: 15px;
 
   .title-section {
@@ -211,10 +226,7 @@ const handleIconClick = (index: number) => {
   }
   .component-section {
     width: 100%;
-    min-height: 400px;
-    background: rgba(0, 0, 0, 0.2);
-    border-radius: 20px;
-    padding: 20px;
+    height: 100%;
   }
 }
 </style>
