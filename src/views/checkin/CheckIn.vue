@@ -1,5 +1,7 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { checkinApi } from '@/api'
+import type { MbSignResult } from '@/api/checkin'
+import { onMounted, ref } from 'vue'
 import { useCheckInSlider } from './composables/useCheckInSlider'
 
 import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
@@ -35,6 +37,20 @@ const {
   onPointerUp,
   onPointerCancel
 } = slider
+
+const activityId = 1
+const verifyCode = ''
+const signInfo = ref<MbSignResult | null>(null)
+
+onMounted(async () => {
+  try {
+    const response = await checkinApi.mbSign({ activityId, verifyCode })
+    signInfo.value = response.data.result
+    console.log('mbSign 响应:', response)
+  } catch (error) {
+    console.error('mbSign 失败:', error)
+  }
+})
 </script>
 
 <template>

@@ -1,11 +1,11 @@
 import { useUserStore } from '@/store/modules/user'
 import type { AxiosInstance, AxiosResponse } from 'axios'
 import axios from 'axios'
-import { showToast } from 'vant'
 import { v4 as uuidv4 } from 'uuid'
-import { StringExtension } from './string-extension'
-import { AESUtils } from './encrypt'
+import { showToast } from 'vant'
 import { noEncryptPaths, SITE } from './crypto-config'
+import { AESUtils } from './encrypt'
+import { StringExtension } from './string-extension'
 
 // 创建 axios 实例
 const service: AxiosInstance = axios.create({

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import checkinCardMain from '@/assets/svg/checkin/checkin-card-main.svg'
 import checkinVectorDivider from '@/assets/svg/checkin/checkin-vector-divider.svg'
@@ -31,6 +31,16 @@ const isFlipping = ref(false)
 const isFlipped = ref(false)
 let lottieIns: AnimationItem | null = null
 const DAY_TEXT_LAYER_NAME = 'dayText'
+const idleScale = 0.97
+const flipScale = 1.1
+// const lottieScale = computed(() => (isFlipping.value ? flipScale : idleScale))
+const idleOffsetY = -10
+const flipOffsetY = -10 // 往上 10px
+const lottieStyle = computed(() => {
+  const scale = isFlipping.value ? flipScale : idleScale
+  const offsetY = isFlipping.value ? flipOffsetY : idleOffsetY
+  return { transform: `translateY(${offsetY}px) scale(${scale})` }
+})
 
 const applyLottieText = (text: string) => {
   if (!lottieIns) return
@@ -121,7 +131,7 @@ watch(
       :style="{ backgroundImage: isFlipped ? `url(${checkinCardMain})` : '' }"
       @click="playFlip"
     >
-      <div v-show="!isFlipped" ref="cardLottieEl" class="card-lottie" />
+      <div v-show="!isFlipped" ref="cardLottieEl" class="card-lottie" :style="lottieStyle" />
       <img
         v-show="isFlipped"
         :src="checkinVectorDivider"
@@ -149,7 +159,6 @@ watch(
   inset: 0;
   z-index: 1;
   pointer-events: none;
-  transform: scale(1.03);
   transform-origin: center;
 }
 
@@ -206,7 +215,7 @@ watch(
   height: 100%;
   left: 24.5%;
   top: 0;
-  transform: scale(1.02);
+  transform: scale(1.05);
   transform-origin: center;
   z-index: 2;
 }
