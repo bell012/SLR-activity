@@ -25,6 +25,14 @@ const routes: Array<RouteRecordRaw> = [
     meta: {
       title: '每日签到'
     }
+  },
+  {
+    path: '/check-in/detail',
+    name: 'CheckInDetail',
+    component: () => import('@/views/checkin/CheckInDetail.vue'),
+    meta: {
+      title: '签到详情'
+    }
   }
 ]
 

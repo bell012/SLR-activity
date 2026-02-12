@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import closeIcon from '@/assets/common/close-icon.svg'
 import { computed, nextTick, ref, watch } from 'vue'
-
 const props = defineProps<{
   show: boolean
   code: string
@@ -32,8 +32,9 @@ const focusInput = async () => {
   inputRef.value?.focus()
 }
 
-const handleInput = (event: { target: { value?: string } }) => {
-  const value = (event.target?.value ?? '').replace(/\D/g, '').slice(0, 6)
+const handleInput = (event: unknown) => {
+  const target = event as { target?: { value?: string } | null } | null
+  const value = (target?.target?.value ?? '').replace(/\D/g, '').slice(0, 6)
   emit('update:code', value)
   if (value.length === 6) {
     emit('submit')
@@ -66,10 +67,10 @@ watch(
         aria-label="Close verification"
         @click="emit('update:show', false)"
       >
-        ×
+        <img :src="closeIcon" alt="Close" />
       </button>
 
-      <h3 class="verify-title">SMS verification</h3>
+      <h3 class="verify-title">SMS VERIFICATION</h3>
       <p class="verify-desc">
         Verification code has been sent to <span>{{ displayPhone }}</span>
       </p>
@@ -124,51 +125,70 @@ watch(
 .verify-dialog {
   position: relative;
   width: 301px;
+  height: 218.33px;
   max-width: 88vw;
-  padding: 22px 20px 18px;
+  padding: 15px 25px 0;
   border-radius: 23px;
   background: #ffffff;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 6px 13.33px rgba(0, 0, 0, 0.2);
 }
 
 .verify-close {
   position: absolute;
-  top: 12px;
-  right: 12px;
+  top: 13px;
+  right: 14px;
   width: 30px;
   height: 30px;
   border: none;
   border-radius: 50%;
-  background: rgba(0, 0, 0, 0.06);
-  color: #888;
-  font-size: 18px;
+  background: rgba(146, 146, 146, 0.1);
+  border: 1px solid rgba(149, 147, 147, 0.4);
+  color: #cacaca;
+  font-size: 12px;
   line-height: 1;
   cursor: pointer;
 }
 
 .verify-title {
-  margin: 6px 0 6px;
-  font-size: 18px;
+  margin: 0 0 30px;
+  width: 189.67px;
+  font-family: 'Inter', sans-serif;
+  font-size: 20px;
   font-weight: 700;
-  color: #2b2b2b;
+  line-height: 24.33px;
+  letter-spacing: 0%;
+  text-transform: uppercase;
+  vertical-align: middle;
+  color: #000000;
 }
 
 .verify-desc {
-  margin: 0 0 14px;
-  font-size: 12px;
-  line-height: 1.5;
-  color: #666;
+  width: 251px;
+  margin: 0 0 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 18px;
+  letter-spacing: 0%;
+  vertical-align: middle;
+  color: rgba(0, 0, 0, 0.7);
 }
 
 .verify-desc span {
-  color: #d62847;
-  font-weight: 600;
+  color: #000000;
+  font-family: 'PingFang SC', sans-serif;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 22px;
+  letter-spacing: 0%;
+  vertical-align: middle;
 }
 
 .verify-code {
   position: relative;
-  width: 100%;
+  width: 251px;
   height: 36px;
+  margin: 0 0 20px;
   cursor: text;
 }
 
@@ -195,13 +215,18 @@ watch(
   height: 36px;
   border-radius: 8px;
   background: #f0f0f0;
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 0.33px solid rgba(255, 255, 255, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-family: 'Inter', sans-serif;
+  font-size: 17px;
   font-weight: 600;
-  color: #d62847;
+  line-height: 20.67px;
+  letter-spacing: 0%;
+  text-align: center;
+  vertical-align: middle;
+  color: #000000;
 }
 
 .code-box.active {
@@ -209,23 +234,39 @@ watch(
 }
 
 .verify-resend-row {
-  margin-top: 12px;
+  width: 251px;
+  margin-top: 0;
   display: flex;
   justify-content: flex-end;
-  min-height: 20px;
-  font-size: 12px;
-  color: #d62847;
+  min-height: 19.33px;
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 19.33px;
+  letter-spacing: 0%;
+  text-align: right;
+  color: rgba(0, 0, 0, 0.7);
 }
 
 .verify-resend-btn {
   border: none;
   background: transparent;
-  color: #d62847;
+  color: rgba(0, 0, 0, 0.7);
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 19.33px;
+  letter-spacing: 0%;
+  text-align: right;
   cursor: pointer;
 }
 
 .verify-resend-text {
+  font-family: 'Inter', sans-serif;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 19.33px;
+  letter-spacing: 0%;
+  text-align: right;
 }
 </style>

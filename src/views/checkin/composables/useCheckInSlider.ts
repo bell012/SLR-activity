@@ -1,6 +1,7 @@
-import { computed, ref } from 'vue'
+import { computed, isRef, ref, watch, type Ref } from 'vue'
 
-export function useCheckInSlider<T>(list: T[], slideDuration = 360) {
+export function useCheckInSlider<T>(list: Ref<T[]> | T[], slideDuration = 360) {
+  const listRef = (isRef(list) ? list : ref(list)) as Ref<T[]>
   const currentIndex = ref(0)
   const isAnimating = ref(false)
   const isResetting = ref(false)
@@ -8,11 +9,11 @@ export function useCheckInSlider<T>(list: T[], slideDuration = 360) {
   const pointerStart = ref<{ x: number; y: number } | null>(null)
 
   const canPrev = computed(() => currentIndex.value > 0)
-  const canNext = computed(() => currentIndex.value < list.length - 1)
+  const canNext = computed(() => currentIndex.value < listRef.value.length - 1)
 
-  const currentCard = computed(() => list[currentIndex.value])
-  const prevCard = computed(() => (canPrev.value ? list[currentIndex.value - 1] : null))
-  const nextCard = computed(() => (canNext.value ? list[currentIndex.value + 1] : null))
+  const currentCard = computed(() => listRef.value[currentIndex.value])
+  const prevCard = computed(() => (canPrev.value ? listRef.value[currentIndex.value - 1] : null))
+  const nextCard = computed(() => (canNext.value ? listRef.value[currentIndex.value + 1] : null))
 
   const slide = (dir: 'next' | 'prev') => {
     if (isAnimating.value) return
@@ -53,6 +54,15 @@ export function useCheckInSlider<T>(list: T[], slideDuration = 360) {
   const onPointerCancel = () => {
     pointerStart.value = null
   }
+
+  watch(
+    () => listRef.value,
+    (next) => {
+      if (currentIndex.value > 0 && currentIndex.value >= next.length) {
+        currentIndex.value = Math.max(0, next.length - 1)
+      }
+    }
+  )
 
   return {
     currentIndex,

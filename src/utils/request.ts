@@ -1,7 +1,6 @@
 import { useUserStore } from '@/store/modules/user'
 import type { AxiosInstance, AxiosResponse } from 'axios'
 import axios from 'axios'
-import { v4 as uuidv4 } from 'uuid'
 import { showToast } from 'vant'
 import { noEncryptPaths, SITE } from './crypto-config'
 import { AESUtils } from './encrypt'
@@ -14,12 +13,12 @@ const service: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json;charset=UTF-8',
     site: SITE,
-    TraceId: '30049825-9366-4709-AA4A-14E40D8AF5E0',
+    TraceId: 'f4c7be16c52a26a5d84312ac3866c974',
     channelId: '1',
     languageCode: 'eng',
     bundleId: '1.0.0',
-    Authorization: 'e8010d8559cf9550cab9bfe261d1b5c0',
-    'X-Auth-Token': 'dc915f01-5fe4-4fc8-957c-e57b3ca13081'
+    Authorization: 'ea9025b925e01580da2eb0f0b0cf7d03',
+    'X-Auth-Token': '2dbb5871-3bf8-4d27-8ef5-27ac92f9c475'
   }
 })
 
@@ -27,7 +26,9 @@ const service: AxiosInstance = axios.create({
 service.interceptors.request.use(
   (config) => {
     const userStore = useUserStore()
-    const uuid = uuidv4()
+    // const uuid = uuidv4()  //测试根据账号更换
+    const uuid = 'cd66edc0-0a5d-49aa-a8a9-50ec14f9107a'
+
     config.headers.uuid = uuid
     if (userStore.token) {
       config.headers.Authorization = `Bearer ${userStore.token}`

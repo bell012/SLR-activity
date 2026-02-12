@@ -9,6 +9,33 @@ import lottie from 'lottie-web'
 import cardFlipAnim from '@/assets/lottie/checkin/checkin-card-flip.json'
 import cardIdleAnim from '@/assets/lottie/checkin/checkin-card-idle.json'
 
+const dayImageMap = import.meta.glob('@/assets/date/*.png', {
+  eager: true,
+  import: 'default'
+}) as Record<string, string>
+
+const dayImageLookup = Object.keys(dayImageMap).reduce(
+  (acc, path) => {
+    const filename = path.split('/').pop()?.replace('.png', '')
+    if (filename) acc[filename.toUpperCase()] = dayImageMap[path]
+    return acc
+  },
+  {} as Record<string, string>
+)
+
+const normalizeDayKey = (value: string) => {
+  const raw = (value ?? '').toString().toUpperCase().replace(/\s+/g, '')
+  if (!raw) return ''
+  if (raw.endsWith('DAY')) return raw
+  const numeric = raw.match(/\d+/)?.[0]
+  return numeric ? `${numeric}DAY` : raw
+}
+
+const resolveDayImage = (day: string) => {
+  const key = normalizeDayKey(day)
+  return dayImageLookup[key] ?? dayImageLookup['1DAY'] ?? ''
+}
+
 const props = defineProps<{
   current: { day: string }
   prev: { day: string } | null
@@ -31,9 +58,12 @@ const cardLottieEl = ref<HTMLDivElement | null>(null)
 const isFlipping = ref(false)
 const isFlipped = ref(false)
 let lottieIns: AnimationItem | null = null
-const DAY_TEXT_LAYER_NAME = 'dayText'
 const idleScale = 0.97
 const flipScale = 1.1
+const dayImageScale = 0.7
+const DAY_LAYER_NAME = '2DAY.png'
+const IDLE_DAY_ASSET_ID = 'image_0'
+const FLIP_DAY_ASSET_ID = 'image_1'
 // const lottieScale = computed(() => (isFlipping.value ? flipScale : idleScale))
 const idleOffsetY = -10
 const flipOffsetY = -10 // 往上 10px
@@ -43,24 +73,62 @@ const lottieStyle = computed(() => {
   return { transform: `translateY(${offsetY}px) scale(${scale})` }
 })
 
-const applyLottieText = (text: string) => {
-  if (!lottieIns) return
-  const renderer = lottieIns.renderer as any
-  const elements = renderer?.elements || []
-  const textLayer = elements.find(
-    (el: any) => el?.data?.ty === 5 && el?.data?.nm === DAY_TEXT_LAYER_NAME
-  )
-  textLayer?.updateDocumentData?.({ t: text })
+const applyDayLayerScale = (data: any, scale: number) => {
+  if (!Array.isArray(data?.layers)) return data
+  if (!Number.isFinite(scale) || scale === 1) return data
+  const scaled = Math.max(0.01, scale) * 100
+  return {
+    ...data,
+    layers: data.layers.map((layer: any) => {
+      if (layer?.nm !== DAY_LAYER_NAME || !layer?.ks?.s) return layer
+      if (layer.ks.s.a === 0 && Array.isArray(layer.ks.s.k)) {
+        return {
+          ...layer,
+          ks: {
+            ...layer.ks,
+            s: {
+              ...layer.ks.s,
+              k: [scaled, scaled, layer.ks.s.k[2] ?? 100]
+            }
+          }
+        }
+      }
+      if (layer.ks.s.a === 1 && Array.isArray(layer.ks.s.k)) {
+        return {
+          ...layer,
+          ks: {
+            ...layer.ks,
+            s: {
+              ...layer.ks.s,
+              k: layer.ks.s.k.map((frame: any) =>
+                frame?.s ? { ...frame, s: [scaled, scaled, frame.s[2] ?? 100] } : frame
+              )
+            }
+          }
+        }
+      }
+      return layer
+    })
+  }
 }
 
-const bindTextOnLoad = () => {
-  if (!lottieIns) return
-  lottieIns.addEventListener('DOMLoaded', () => {
-    applyLottieText(props.current.day)
-  })
+const buildAnimationData = (source: any, dayImage: string, assetId: string) => {
+  const assets = Array.isArray(source?.assets)
+    ? source.assets.map((asset: any) =>
+        asset.id === assetId ? { ...asset, p: dayImage, u: '', e: 0 } : asset
+      )
+    : source?.assets
+  return applyDayLayerScale({ ...source, assets }, dayImageScale)
 }
+
+const getIdleAnimationData = () =>
+  buildAnimationData(cardIdleAnim, resolveDayImage(props.current.day), IDLE_DAY_ASSET_ID)
+
+const getFlipAnimationData = () =>
+  buildAnimationData(cardFlipAnim, resolveDayImage(props.current.day), FLIP_DAY_ASSET_ID)
 
 const onCenterClick = () => {
+  if (isFlipped.value) return
   emit('centerClick')
 }
 
@@ -72,9 +140,8 @@ const playIdle = () => {
     renderer: 'svg',
     loop: true,
     autoplay: true,
-    animationData: cardIdleAnim
+    animationData: getIdleAnimationData()
   })
-  bindTextOnLoad()
 }
 
 const playFlip = () => {
@@ -86,9 +153,8 @@ const playFlip = () => {
     renderer: 'svg',
     loop: false,
     autoplay: true,
-    animationData: cardFlipAnim
+    animationData: getFlipAnimationData()
   })
-  bindTextOnLoad()
   lottieIns.addEventListener('complete', () => {
     isFlipping.value = false
     isFlipped.value = true
@@ -102,11 +168,10 @@ onBeforeUnmount(() => lottieIns?.destroy())
 
 watch(
   () => props.current.day,
-  (value) => {
+  () => {
     isFlipped.value = false
     isFlipping.value = false
     playIdle()
-    applyLottieText(value)
   }
 )
 
@@ -131,7 +196,12 @@ defineExpose({ playFlip })
       :style="{ backgroundImage: `url(${checkinCardMain})` }"
       @click="emit('prev')"
     >
-      <span class="card-day">{{ prev.day }}</span>
+      <img
+        :src="resolveDayImage(prev.day)"
+        :alt="prev.day"
+        class="card-day-image"
+        aria-hidden="true"
+      />
     </div>
     <div
       class="card card-center"
@@ -155,7 +225,12 @@ defineExpose({ playFlip })
       :style="{ backgroundImage: `url(${checkinCardMain})` }"
       @click="emit('next')"
     >
-      <span class="card-day">{{ next.day }}</span>
+      <img
+        :src="resolveDayImage(next.day)"
+        :alt="next.day"
+        class="card-day-image"
+        aria-hidden="true"
+      />
     </div>
   </div>
 </template>
@@ -182,6 +257,14 @@ defineExpose({ playFlip })
 .card-day {
   position: relative;
   z-index: 2;
+}
+
+.card-day-image {
+  position: relative;
+  z-index: 2;
+  transform: translateY(2.2px) scale(0.372);
+  transform-origin: center;
+  display: block;
 }
 
 .card-deck {
@@ -229,7 +312,7 @@ defineExpose({ playFlip })
 
 .card .card-day {
   font-family: 'Inter', sans-serif;
-  font-size: 25px;
+  font-size: 23px;
   font-weight: 700;
   background: linear-gradient(180deg, #ffffff 0%, #ffe5d2 100%);
   -webkit-background-clip: text;

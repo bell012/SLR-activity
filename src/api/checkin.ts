@@ -19,14 +19,6 @@ export interface MbSignResult {
   endDate?: number
 }
 
-export type MbHistorySignResult = Array<{
-  todayIsSign: boolean
-  signDays: number
-  betAmount: number
-  rechargeAmount: number
-  todaySignAmount: number
-}>
-
 export interface TicketLanguageInfo {
   languageCode: string
   name: string
@@ -181,15 +173,7 @@ export const mbSign = (params: { activityId: number; verifyCode: string }) => {
   )
 }
 
-export const mbHistorySign = (params: { activityId: number; verifyCode: string }) => {
-  return request.post<ApiResponse<MbHistorySignResult>, ApiResponse<MbHistorySignResult>>(
-    '/activity/checkin/mbHistorySign',
-    params
-  )
-}
-
 export default {
   receiveReward,
-  mbSign,
-  mbHistorySign
+  mbSign
 }

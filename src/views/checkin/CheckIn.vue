@@ -1,8 +1,10 @@
 <script setup lang="ts">
-import { checkinApi, smsApi } from '@/api'
-import type { MbHistorySignResult, MbSignResult, ReceiveRewardResult } from '@/api/checkin'
+import { checkinApi, smsApi, ticketApi } from '@/api'
+import type { MbSignResult, ReceiveRewardResult } from '@/api/checkin'
+
 import { showToast } from 'vant'
-import { onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useCheckInSlider } from './composables/useCheckInSlider'
 
 import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
@@ -14,22 +16,80 @@ import CheckInCardDeck from './components/CheckInCardDeck.vue'
 import VerifyPhonePopup from './components/VerifyPhonePopup.vue'
 const SLIDE_DURATION = 360
 
-const bonusList = ref([
-  { day: '1DAY', amount: '₱100' },
-  { day: '2DAY', amount: '₱200' },
-  { day: '3DAY', amount: '₱300' },
-  { day: '4DAY', amount: '₱500' },
-  { day: '5DAY', amount: '₱800' },
-  { day: '6DAY', amount: '₱1000' },
-  { day: '7DAY', amount: '₱1500' },
-  { day: '8DAY', amount: '₱2000' },
-  { day: '9DAY', amount: '₱2500' },
-  { day: '10DAY', amount: '₱3000' }
-])
+const router = useRouter()
+const route = useRoute()
 
-const slider = useCheckInSlider(bonusList.value, SLIDE_DURATION)
+const pickLocalizedText = (
+  list?: Array<{ languageCode?: string; name?: string }>,
+  fallback = ''
+) => {
+  if (!Array.isArray(list) || list.length === 0) return fallback
+  const target =
+    list.find((item) => item.languageCode === 'eng' || item.languageCode === 'en') || list[0]
+  return target?.name || fallback
+}
+
+const symbol = computed(() => {
+  const currency = activityCurrency.value
+  return getCurrencySymbol(currency)
+})
+
+const formatDate = (value?: number) => {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: '2-digit',
+    year: 'numeric'
+  }).format(new Date(value))
+}
+
+const getCurrencySymbol = (currency?: string) => {
+  const map: Record<string, string> = {
+    PHP: '₱',
+    USD: '$',
+    EUR: '€',
+    GBP: '£'
+  }
+  if (!currency) return ''
+  return map[currency] ?? `${currency} `
+}
+
+const resolveImage = (value?: string) => {
+  if (!value) return ''
+  if (value.startsWith('http') || value.startsWith('data:')) return value
+  return ''
+}
+
+const activityDetail = ref<any | null>(null)
+const activityTitle = computed(
+  () =>
+    pickLocalizedText(activityDetail.value?.activityName) ||
+    activityDetail.value?.activiName ||
+    'CHECK-IN EVENT'
+)
+const activitySubtitle = computed(
+  () =>
+    pickLocalizedText(activityDetail.value?.activityDesc) ||
+    'Check in daily and meet the requiements to claim rewards'
+)
+const startTagText = computed(() => {
+  const dateText = formatDate(activityDetail.value?.startDate)
+  return dateText ? `Starts On: ${dateText}` : 'Starts On: --'
+})
+const activityCurrency = computed(
+  () => activityDetail.value?.config?.PHP?.currency || activityDetail.value?.currencyList?.[0]
+)
+const activityBackground = computed(() => {
+  const config = activityDetail.value?.config?.PHP
+  return resolveImage(config?.bgImage || config?.bgLogo) || checkinBg
+})
+
+const bonusList = ref([{ day: '', amount: '' }])
+
+const slider = useCheckInSlider(bonusList, SLIDE_DURATION)
 
 const {
+  currentIndex,
   isResetting,
   direction,
   currentCard,
@@ -41,10 +101,11 @@ const {
   onPointerCancel
 } = slider
 
-const activityId = 29
+// 后续url取值
 const verifyCode = '123456'
+const activityId = computed(() => Number(route.query.activityId) || 111)
+
 const signInfo = ref<MbSignResult | null>(null)
-const historySignInfo = ref<MbHistorySignResult | null>(null)
 const rewardInfo = ref<ReceiveRewardResult | null>(null)
 const cardDeckRef = ref<InstanceType<typeof CheckInCardDeck> | null>(null)
 const showVerifyPopup = ref(false)
@@ -54,6 +115,8 @@ const resendSeconds = ref(0)
 const resendTimer = ref<number | null>(null)
 const isSendingSms = ref(false)
 const phoneNumber = ref('')
+// 国家区号
+const areaCode = ref('+63')
 
 const showTopOverlay = ref(false)
 
@@ -61,13 +124,49 @@ const handleScroll = () => {
   showTopOverlay.value = window.scrollY > 10
 }
 
-const handleCenterClick = () => {
+const getAllowedSignIndex = () => {
+  const signedDays = signInfo.value?.signDays ?? 1
+  return Math.max(0, signedDays - 1)
+}
+
+const goToDetail = () => {
+  router.push({
+    name: 'CheckInDetail',
+    query: { activityId: activityId.value }
+  })
+}
+
+const handleCenterClick = async () => {
+  if (currentIndex.value !== getAllowedSignIndex()) {
+    showToast({ message: '请先签到当天', position: 'top' })
+    return
+  }
   const needVerify = rewardInfo.value?.ticket?.completeVerification?.verifyPhone === 1
   if (needVerify) {
     showVerifyPopup.value = true
     return
   }
-  cardDeckRef.value?.playFlip()
+
+  // 领取奖励
+  try {
+    const response = await checkinApi.receiveReward({ activityId: activityId.value, verifyCode })
+    console.log('----receiveReward-rewardInfo----:', response)
+
+    rewardInfo.value = response.result
+    if (response.message === '签到成功' || response.message === '今日已签到') {
+      // 签到成功 在执行lottie
+      cardDeckRef.value?.playFlip()
+    }
+    showToast({
+      message: response.message || '活动不存在',
+      position: 'top'
+    })
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '领取奖励失败'
+
+    showToast({ message: message || '领取奖励失败', position: 'top' })
+    console.error('receiveReward 失败:', error)
+  }
 }
 
 const handleResendCode = () => {
@@ -110,7 +209,19 @@ const sendSmsCode = async () => {
   canResend.value = false
   resendSeconds.value = 0
   try {
-    await smsApi.sendSmsCode({ phone: phoneNumber.value })
+    const response = await smsApi.sendSmsCode({
+      telephone: phoneNumber.value,
+      areaCode: areaCode.value
+    })
+    console.log('----sendSmsCode----:', response)
+    // 1) 接口失败：直接提示并结束
+    if (response.code !== 'C2') {
+      showToast({
+        message: response.message || '获取验证码失败',
+        position: 'top'
+      })
+      return
+    }
     startResendCountdown(60)
   } catch (error) {
     showToast({ message: '发送验证码失败', position: 'top' })
@@ -136,55 +247,111 @@ watch(
   }
 )
 
+const extractActivityList = (response: any) => {
+  if (Array.isArray(response?.result.records)) return response.result.records
+  return []
+}
+
+const applyActivityDetail = (item: any) => {
+  activityDetail.value = item
+  const signList = item?.config?.PHP?.sign
+  if (Array.isArray(signList) && signList.length > 0) {
+    bonusList.value = signList
+  }
+}
+
+const fetchActivityDetail = async () => {
+  try {
+    const response = await ticketApi.getMbTicketList({})
+
+    const list = extractActivityList(response)
+
+    const matched = list.find((item: { rowId?: number }) => Number(item.rowId) === activityId.value)
+
+    if (matched) {
+      applyActivityDetail(matched)
+    } else if (list.length > 0) {
+      showToast({
+        message: '未获取到该活动信息',
+        position: 'top'
+      })
+    }
+    console.log('----response----:', response)
+    console.log('----matched----:', matched)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '活动列表失败:'
+    showToast({
+      message: message,
+      position: 'top'
+    })
+    console.error('活动列表失败:', error)
+  }
+}
+
 onMounted(async () => {
+  await fetchActivityDetail()
+
   // 会员签到信息
   try {
-    const response = await checkinApi.mbSign({ activityId, verifyCode })
+    const response = await checkinApi.mbSign({ activityId: activityId.value, verifyCode })
     signInfo.value = response.result
-    phoneNumber.value = response.result?.phone ?? ''
-    if (response.result == null) {
-      showToast({
-        message: response.message || '活动不存在',
-        position: 'top'
-      })
-    }
-    console.log('mbSign 响应:', response)
+    console.log('----mbSign-signInfo----:', response)
+    // if (response.result?.signDays) {
+    //   const targetIndex = Math.max(
+    //     0,
+    //     Math.min(bonusList.value.length - 1, response.result.signDays - 1)
+    //   )
+    //   currentIndex.value = targetIndex
+    // }
+    // if (response.result == null) {
+    //   showToast({
+    //     message: response.message || '活动不存在',
+    //     position: 'top'
+    //   })
+    // }
   } catch (error) {
+    const message = error instanceof Error ? error.message : '获取会员签到信息失败'
+    showToast({
+      message: message,
+      position: 'top'
+    })
     console.error('mbSign 失败:', error)
   }
+  // ToDo：获取会员信息
+  try {
+    const response = await smsApi.selectMember({ memberId: '1000011590' })
 
-  // // 会员历史签到信息
-  try {
-    const response = await checkinApi.mbHistorySign({ activityId, verifyCode })
-    historySignInfo.value = response.result
-    if (response.result == null) {
+    console.log('----selectMember----:', response)
+    phoneNumber.value = (response.result?.memberId ?? '').trim()
+    areaCode.value = (response.result?.areaCode ?? '').trim()
+
+    // 1) 接口失败：直接提示并结束
+    if (response.code !== 'C2') {
       showToast({
-        message: response.message || '请联系客服',
+        message: response.message || '获取会员信息失败',
         position: 'top'
       })
+      return
     }
-    console.log('mbHistorySign 响应:', response)
-  } catch (error) {
-    console.error('mbHistorySign 失败:', error)
-  }
-  // 领取奖励
-  try {
-    const response = await checkinApi.receiveReward({ activityId, verifyCode })
-    rewardInfo.value = response.result
-    if (response.result == null) {
+
+    // 2) 接口成功但未绑定手机号：提示并结束
+    if (!phoneNumber.value) {
       showToast({
-        message: response.message || '活动不存在',
+        message: '请绑定手机号后再进行签到',
         position: 'top'
       })
+      return
     }
-    console.log('receiveReward 响应:', response)
   } catch (error) {
-    console.error('receiveReward 失败:', error)
+    const message = error instanceof Error ? error.message : '获取会员信息失败'
+    showToast({
+      message: message,
+      position: 'top'
+    })
   }
 
   window.addEventListener('scroll', handleScroll)
 })
-
 onUnmounted(() => {
   if (resendTimer.value) {
     window.clearInterval(resendTimer.value)
@@ -203,17 +370,17 @@ onUnmounted(() => {
       alt=""
     />
     <div class="check-in-modal">
-      <div class="modal-bg" :style="{ backgroundImage: `url(${checkinBg})` }" />
+      <div class="modal-bg" :style="{ backgroundImage: `url(${activityBackground})` }" />
 
       <header class="modal-header">
-        <div class="start-tag">Starts On: January 30, 2026</div>
+        <div class="start-tag">{{ startTagText }}</div>
         <button class="back-btn" aria-label="Back">
           <span class="back-icon" />
         </button>
       </header>
 
-      <div class="title">CHECK-IN EVENT</div>
-      <p class="subtitle">Check in daily and meet the requiements to claim rewards</p>
+      <div class="title">{{ activityTitle }}</div>
+      <p class="subtitle">{{ activitySubtitle }}</p>
 
       <CheckInCardDeck
         ref="cardDeckRef"
@@ -230,7 +397,7 @@ onUnmounted(() => {
         @pointercancel="onPointerCancel"
       />
 
-      <section class="bonus-section">
+      <section class="bonus-section" role="button" @click="goToDetail">
         <div class="bonus-header">
           <img :src="checkinGiftBox" alt="gift box" class="gift-icon" />
           <div class="title-container">
@@ -245,13 +412,13 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <CheckInBonusGrid :list="bonusList" />
+        <CheckInBonusGrid :list="bonusList" :symbol="symbol" />
       </section>
 
       <VerifyPhonePopup
         v-model:show="showVerifyPopup"
         v-model:code="verifyCodeInput"
-        :phone="phoneNumber"
+        :phone="'+' + areaCode + phoneNumber"
         :can-resend="canResend"
         :seconds-left="resendSeconds"
         :is-sending="isSendingSms"
@@ -402,6 +569,7 @@ onUnmounted(() => {
   position: relative;
   z-index: 2;
   margin-top: 20px;
+  cursor: pointer;
 }
 
 .bonus-header {
