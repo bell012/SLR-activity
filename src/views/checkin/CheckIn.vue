@@ -298,8 +298,6 @@ const handleCenterClick = async () => {
       const response = await smsApi.selectMember({ memberId: '1000011590' })
 
       console.log('----selectMember----:', response)
-      phoneNumber.value = (response.result?.memberId ?? '').trim()
-      areaCode.value = (response.result?.areaCode ?? '').trim()
       // 1) 接口失败：直接提示并结束
       if (response.code !== 'C2') {
         showToast({
@@ -309,6 +307,8 @@ const handleCenterClick = async () => {
         return
       }
 
+      phoneNumber.value = (response.result?.memberId ?? '').trim()
+      areaCode.value = (response.result?.areaCode ?? '').trim()
       // 2) 接口成功但未绑定手机号：提示并结束
       if (!phoneNumber.value) {
         showToast({
@@ -578,9 +578,9 @@ onUnmounted(() => {
 
       <header class="modal-header">
         <div class="start-tag">{{ startTagText }}</div>
-        <!-- <button class="back-btn" aria-label="Back">
+        <button class="back-btn" aria-label="Back">
           <span class="back-icon" />
-        </button> -->
+        </button>
       </header>
 
       <div class="title">{{ activityTitle }}</div>
@@ -715,16 +715,16 @@ onUnmounted(() => {
   color: #f15e62;
 }
 
-// .back-btn {
-//   width: 38px;
-//   height: 38px;
-//   border-radius: 999px;
-//   background: rgba(244, 122, 122, 0.2);
-//   border: 1px solid #ffffff;
-//   display: flex;
-//   align-items: center;
-//   justify-content: center;
-// }
+.back-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  background: rgba(244, 122, 122, 0.2);
+  border: 1px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .back-icon {
   width: 16px;
