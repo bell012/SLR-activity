@@ -2,7 +2,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import checkinCardMain from '@/assets/svg/checkin/checkin-card-main.svg'
+import checkinDecorationBg from '@/assets/svg/checkin/checkin-decoration-bg.svg'
 import checkinVectorDivider from '@/assets/svg/checkin/checkin-vector-divider.svg'
+import CheckInConditionsPanel from './CheckInConditionsPanel.vue'
 import type { AnimationItem } from 'lottie-web'
 import lottie from 'lottie-web'
 
@@ -23,7 +25,7 @@ const dayImageLookup = Object.keys(dayImageMap).reduce(
   {} as Record<string, string>
 )
 
-const normalizeDayKey = (value: string) => {
+const normalizeDayKey = (value?: string | number) => {
   const raw = (value ?? '').toString().toUpperCase().replace(/\s+/g, '')
   if (!raw) return ''
   if (raw.endsWith('DAY')) return raw
@@ -31,17 +33,27 @@ const normalizeDayKey = (value: string) => {
   return numeric ? `${numeric}DAY` : raw
 }
 
-const resolveDayImage = (day: string) => {
+const resolveDayImage = (day?: string | number) => {
   const key = normalizeDayKey(day)
   return dayImageLookup[key] ?? dayImageLookup['1DAY'] ?? ''
 }
 
+type CardItem = {
+  day?: string | number
+  betAmount?: number | string | null
+  rechargeAmount?: number | string | null
+  depositProgress?: number | string | null
+  betProgress?: number | string | null
+  isReceived?: boolean | null
+}
+
 const props = defineProps<{
-  current: { day: string }
-  prev: { day: string } | null
-  next: { day: string } | null
+  current: CardItem
+  prev: CardItem | null
+  next: CardItem | null
   direction: 'next' | 'prev' | null
   isResetting: boolean
+  symbol?: string
 }>()
 
 const emit = defineEmits<{
@@ -72,6 +84,25 @@ const lottieStyle = computed(() => {
   const offsetY = isFlipping.value ? flipOffsetY : idleOffsetY
   return { transform: `translateY(${offsetY}px) scale(${scale})` }
 })
+
+const isCurrentReceived = computed(() => Boolean(props.current?.isReceived))
+
+const cardBackground = computed(() => {
+  if (isCurrentReceived.value) return `url(${checkinCardMain})`
+  if (!isFlipped.value) return ''
+  return hasRequirements.value ? `url(${checkinDecorationBg})` : `url(${checkinCardMain})`
+})
+
+const normalizeAmount = (value: number | string | null | undefined) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0
+}
+
+const depositTarget = computed(() => normalizeAmount(props.current?.rechargeAmount))
+const betTarget = computed(() => normalizeAmount(props.current?.betAmount))
+const depositProgressValue = computed(() => normalizeAmount(props.current?.depositProgress))
+const betProgressValue = computed(() => normalizeAmount(props.current?.betProgress))
+const hasRequirements = computed(() => depositTarget.value > 0 || betTarget.value > 0)
 
 const applyDayLayerScale = (data: any, scale: number) => {
   if (!Array.isArray(data?.layers)) return data
@@ -128,12 +159,12 @@ const getFlipAnimationData = () =>
   buildAnimationData(cardFlipAnim, resolveDayImage(props.current.day), FLIP_DAY_ASSET_ID)
 
 const onCenterClick = () => {
-  if (isFlipped.value) return
+  if (isFlipped.value || isCurrentReceived.value) return
   emit('centerClick')
 }
 
 const playIdle = () => {
-  if (!cardLottieEl.value || isFlipped.value) return
+  if (!cardLottieEl.value || isFlipped.value || isCurrentReceived.value) return
   lottieIns?.destroy()
   lottieIns = lottie.loadAnimation({
     container: cardLottieEl.value,
@@ -171,6 +202,8 @@ watch(
   () => {
     isFlipped.value = false
     isFlipping.value = false
+    lottieIns?.destroy()
+    lottieIns = null
     playIdle()
   }
 )
@@ -197,24 +230,47 @@ defineExpose({ playFlip })
       @click="emit('prev')"
     >
       <img
+        v-if="!prev.isReceived"
         :src="resolveDayImage(prev.day)"
-        :alt="prev.day"
+        :alt="String(prev.day ?? '')"
         class="card-day-image"
         aria-hidden="true"
+      />
+      <img
+        v-else
+        :src="checkinVectorDivider"
+        alt=""
+        aria-hidden="true"
+        class="card-divider card-divider-mini"
       />
     </div>
     <div
       class="card card-center"
-      :style="{ backgroundImage: isFlipped ? `url(${checkinCardMain})` : '' }"
+      :style="{ backgroundImage: cardBackground }"
       @click="onCenterClick"
     >
-      <div v-show="!isFlipped" ref="cardLottieEl" class="card-lottie" :style="lottieStyle" />
+      <div
+        v-show="!isFlipped && !isCurrentReceived"
+        ref="cardLottieEl"
+        class="card-lottie"
+        :style="lottieStyle"
+      />
       <img
-        v-show="isFlipped"
+        v-show="isCurrentReceived || (isFlipped && !hasRequirements && !isCurrentReceived)"
         :src="checkinVectorDivider"
         alt=""
         aria-hidden="true"
         class="card-divider"
+      />
+      <CheckInConditionsPanel
+        v-if="isFlipped && hasRequirements && !isCurrentReceived"
+        class="card-requirements"
+        :day="current.day"
+        :deposit-target="depositTarget"
+        :deposit-progress="depositProgressValue"
+        :bet-target="betTarget"
+        :bet-progress="betProgressValue"
+        :symbol="symbol"
       />
 
       <!-- <span class="card-day">{{ current.day }}</span> -->
@@ -226,10 +282,18 @@ defineExpose({ playFlip })
       @click="emit('next')"
     >
       <img
+        v-if="!next.isReceived"
         :src="resolveDayImage(next.day)"
-        :alt="next.day"
+        :alt="String(next.day ?? '')"
         class="card-day-image"
         aria-hidden="true"
+      />
+      <img
+        v-else
+        :src="checkinVectorDivider"
+        alt=""
+        aria-hidden="true"
+        class="card-divider card-divider-mini"
       />
     </div>
   </div>
@@ -254,6 +318,12 @@ defineExpose({ playFlip })
   z-index: 1;
   pointer-events: none;
 }
+
+.card-divider-mini {
+  width: 40px;
+  height: 34px;
+}
+
 .card-day {
   position: relative;
   z-index: 2;

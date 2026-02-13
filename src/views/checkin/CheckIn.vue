@@ -11,11 +11,15 @@ import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
 import checkinGiftBox from '@/assets/svg/checkin/checkin-gift-box.svg'
 import checkinTopScrollOverlay from '@/assets/svg/checkin/checkin-top-scroll-overlay.svg'
 import rulesIcon from '@/assets/svg/checkin/rules-icon.svg'
+import CheckinSkeleton from './CheckIn-skeleton.vue'
 import CheckInBonusGrid from './components/CheckInBonusGrid.vue'
 import CheckInCardDeck from './components/CheckInCardDeck.vue'
+import CheckInConditionsPopup from './components/CheckInConditionsPopup.vue'
 import VerifyPhonePopup from './components/VerifyPhonePopup.vue'
-const SLIDE_DURATION = 360
 
+const SLIDE_DURATION = 360
+// 9、手机短信验证
+const needVerify = ref(false)
 const router = useRouter()
 const route = useRoute()
 
@@ -72,9 +76,30 @@ const activitySubtitle = computed(
     pickLocalizedText(activityDetail.value?.activityDesc) ||
     'Check in daily and meet the requiements to claim rewards'
 )
+const bonusSubtitle = computed(() => {
+  const signType = activityDetail.value?.config?.PHP?.signType
+  return Number(signType) === 0
+    ? 'Consecutive check-ins earn more rewards'
+    : 'Cumulative check-ins earn more rewards'
+})
 const startTagText = computed(() => {
-  const dateText = formatDate(activityDetail.value?.startDate)
-  return dateText ? `Starts On: ${dateText}` : 'Starts On: --'
+  const startDate = activityDetail.value?.startDate
+  const endDate = activityDetail.value?.endDate
+  const now = Date.now()
+  if (startDate && now < startDate) {
+    const startText = formatDate(startDate)
+    return startText ? `Starts On: ${startText}` : 'Starts On: --'
+  }
+  if (endDate && now <= endDate) {
+    const endText = formatDate(endDate)
+    return endText ? `Ends On: ${endText}` : 'Ends On: --'
+  }
+  if (endDate) {
+    const endText = formatDate(endDate)
+    return endText ? `Ends On: ${endText}` : 'Ends On: --'
+  }
+  const startText = formatDate(startDate)
+  return startText ? `Starts On: ${startText}` : 'Starts On: --'
 })
 const activityCurrency = computed(
   () => activityDetail.value?.config?.PHP?.currency || activityDetail.value?.currencyList?.[0]
@@ -84,7 +109,22 @@ const activityBackground = computed(() => {
   return resolveImage(config?.bgImage || config?.bgLogo) || checkinBg
 })
 
-const bonusList = ref([{ day: '', amount: '' }])
+type BonusItem = {
+  day?: number | string
+  amount?: string
+  ticketId?: number | string
+  ticketType?: number | string | null
+  betAmount?: number | string | null
+  rechargeAmount?: number | string | null
+  amountRange?: number[] | null
+  rewardAmount?: number | string | null
+  depositProgress?: number | string | null
+  betProgress?: number | string | null
+  isReceived?: boolean | null
+}
+
+const bonusList = ref<BonusItem[]>([{ day: '', amount: '' }])
+const isLoading = ref(true)
 
 const slider = useCheckInSlider(bonusList, SLIDE_DURATION)
 
@@ -101,15 +141,17 @@ const {
   onPointerCancel
 } = slider
 
-// 后续url取值
-const verifyCode = '123456'
+// TODO：后续url取值，，暂时固定
 const activityId = computed(() => Number(route.query.activityId) || 111)
 
 const signInfo = ref<MbSignResult | null>(null)
 const rewardInfo = ref<ReceiveRewardResult | null>(null)
 const cardDeckRef = ref<InstanceType<typeof CheckInCardDeck> | null>(null)
 const showVerifyPopup = ref(false)
-const verifyCodeInput = ref('')
+const showConditionsPopup = ref(false)
+const conditionsItem = ref<BonusItem | null>(null)
+// TODO： 校验验证码接口，暂时固定
+const verifyCodeInput = ref('123456')
 const canResend = ref(false)
 const resendSeconds = ref(0)
 const resendTimer = ref<number | null>(null)
@@ -129,6 +171,92 @@ const getAllowedSignIndex = () => {
   return Math.max(0, signedDays - 1)
 }
 
+const normalizeProgressValue = (value: unknown) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0
+}
+
+const applySignProgress = (signResult: MbSignResult | null) => {
+  if (!signResult || bonusList.value.length === 0) return
+  const targetIndex = Math.max(
+    0,
+    Math.min(bonusList.value.length - 1, (signResult.signDays ?? 1) - 1)
+  )
+  const historyList = Array.isArray(signResult.historySign) ? signResult.historySign : []
+  const historyMap = new Map<number, any>()
+  historyList.forEach((item) => {
+    const dayValue = Number(item?.signDays)
+    if (Number.isFinite(dayValue)) {
+      historyMap.set(dayValue, item)
+    }
+  })
+  const latest = historyList.length > 0 ? historyList[historyList.length - 1] : null
+  const depositProgress = normalizeProgressValue(
+    latest?.rechargeAmount ?? signResult.rechargeAmount
+  )
+  const betProgress = normalizeProgressValue(latest?.betAmount ?? signResult.betAmount)
+  const todayReceived = Boolean(signResult.todayIsSign)
+
+  bonusList.value = bonusList.value.map((item, index) => {
+    const dayValue = Number(item?.day)
+    const day = Number.isFinite(dayValue) ? dayValue : index + 1
+    const history = historyMap.get(day)
+    const receivedAmount = history?.todaySignAmount ?? history?.rewardAmount ?? history?.amount
+    const isReceived = Boolean(history) || (index === targetIndex && todayReceived)
+    if (index !== targetIndex) {
+      return {
+        ...item,
+        isReceived,
+        receivedAmount
+      }
+    }
+    return {
+      ...item,
+      isReceived,
+      receivedAmount,
+      depositProgress,
+      betProgress
+    }
+  })
+
+  currentIndex.value = targetIndex
+}
+
+const hasRequirementLimit = (item: any) => {
+  const rechargeTarget = Number(item?.rechargeAmount)
+  const betTarget = Number(item?.betAmount)
+  return (
+    (Number.isFinite(rechargeTarget) && rechargeTarget > 0) ||
+    (Number.isFinite(betTarget) && betTarget > 0)
+  )
+}
+
+const isRequirementMet = (item: any) => {
+  const rechargeTarget = Number(item?.rechargeAmount)
+  const betTarget = Number(item?.betAmount)
+  const rechargeProgress = Number(item?.depositProgress ?? 0)
+  const betProgress = Number(item?.betProgress ?? 0)
+  const needRecharge = Number.isFinite(rechargeTarget) && rechargeTarget > 0
+  const needBet = Number.isFinite(betTarget) && betTarget > 0
+
+  if (needRecharge && rechargeProgress < rechargeTarget) return false
+  if (needBet && betProgress < betTarget) return false
+  return true
+}
+
+const markCurrentReceived = () => {
+  bonusList.value = bonusList.value.map((item, index) => {
+    if (index !== currentIndex.value) return item
+    return {
+      ...item,
+      isReceived: true
+    }
+  })
+  if (signInfo.value) {
+    signInfo.value.todayIsSign = true
+  }
+}
+
 const goToDetail = () => {
   router.push({
     name: 'CheckInDetail',
@@ -136,48 +264,143 @@ const goToDetail = () => {
   })
 }
 
+const handleBonusItemClick = (item: BonusItem) => {
+  conditionsItem.value = item
+  showConditionsPopup.value = true
+}
+
 const handleCenterClick = async () => {
-  if (currentIndex.value !== getAllowedSignIndex()) {
-    showToast({ message: '请先签到当天', position: 'top' })
-    return
-  }
-  const needVerify = rewardInfo.value?.ticket?.completeVerification?.verifyPhone === 1
-  if (needVerify) {
-    showVerifyPopup.value = true
-    return
-  }
+  const current = currentCard.value
+  if (!current) return
+  const isToday = currentIndex.value === getAllowedSignIndex()
+  const hasLimit = hasRequirementLimit(current)
+  const isMet = isRequirementMet(current)
+  const isReceived = Boolean(current.isReceived)
 
-  // 领取奖励
-  try {
-    const response = await checkinApi.receiveReward({ activityId: activityId.value, verifyCode })
-    console.log('----receiveReward-rewardInfo----:', response)
-
-    rewardInfo.value = response.result
-    if (response.message === '签到成功' || response.message === '今日已签到') {
-      // 签到成功 在执行lottie
+  if (isReceived) return
+  if (!isToday) {
+    if (hasLimit) {
       cardDeckRef.value?.playFlip()
     }
+    return
+  }
+  if (!hasLimit) {
+    cardDeckRef.value?.playFlip()
+  }
+  if (hasLimit && !isMet) {
+    cardDeckRef.value?.playFlip()
+    return
+  }
+  // 9、手机短信验证
+  if (needVerify.value) {
+    // ToDo：获取会员信息   // 获取手机号
+    try {
+      const response = await smsApi.selectMember({ memberId: '1000011590' })
+
+      console.log('----selectMember----:', response)
+      phoneNumber.value = (response.result?.memberId ?? '').trim()
+      areaCode.value = (response.result?.areaCode ?? '').trim()
+      // 1) 接口失败：直接提示并结束
+      if (response.code !== 'C2') {
+        showToast({
+          message: response.message || '获取会员信息失败',
+          position: 'top'
+        })
+        return
+      }
+
+      // 2) 接口成功但未绑定手机号：提示并结束
+      if (!phoneNumber.value) {
+        showToast({
+          message: '请绑定手机号后再进行签到',
+          position: 'top'
+        })
+        return
+      }
+
+      // 弹窗
+      showVerifyPopup.value = true
+      return
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '获取会员信息失败'
+      showToast({
+        message: message,
+        position: 'top'
+      })
+    }
+  }
+  const result = await getReceiveReward()
+  if (result === 'success' || result === 'already' || result === 'unmet') {
+    cardDeckRef.value?.playFlip()
+  }
+}
+//  // 领取奖励
+type ReceiveStatus = 'success' | 'already' | 'unmet' | 'error'
+
+const getReceiveReward = async (): Promise<ReceiveStatus> => {
+  try {
+    const response = await checkinApi.receiveReward({
+      activityId: activityId.value,
+      verifyCode: verifyCodeInput.value
+    })
+    console.log('----receiveReward-rewardInfo----:', response)
+
+    const message = response.message || ''
+    if (/今日已签到/.test(message)) {
+      markCurrentReceived()
+      showToast({
+        message: message || '今日已签到',
+        position: 'top'
+      })
+      return 'already'
+    }
+
+    if (/条件.*(未满足|为满足)/.test(message)) {
+      showToast({
+        message: message || '条件未满足',
+        position: 'top'
+      })
+      return 'unmet'
+    }
+
+    const isSuccessCode = response.code === 'C2' || response.code === 200 || response.code === 0
+    if (isSuccessCode) {
+      rewardInfo.value = response.result
+      markCurrentReceived()
+      showToast({
+        message: message || '操作成功',
+        position: 'top'
+      })
+      return 'success'
+    }
+
     showToast({
-      message: response.message || '活动不存在',
+      message: message || '活动不存在',
       position: 'top'
     })
+    return 'error'
   } catch (error) {
     const message = error instanceof Error ? error.message : '领取奖励失败'
 
     showToast({ message: message || '领取奖励失败', position: 'top' })
     console.error('receiveReward 失败:', error)
+    return 'error'
   }
 }
-
 const handleResendCode = () => {
   if (!canResend.value || isSendingSms.value) return
   void sendSmsCode()
 }
 
-const handleVerifySubmit = () => {
+const handleVerifySubmit = async () => {
   // TODO: 调用校验验证码接口
   showVerifyPopup.value = false
-  cardDeckRef.value?.playFlip()
+
+  // 领取奖励
+  const result = await getReceiveReward()
+  if (result === 'success' || result === 'already') {
+    cardDeckRef.value?.playFlip()
+  }
 }
 
 const startResendCountdown = (seconds = 60) => {
@@ -261,16 +484,20 @@ const applyActivityDetail = (item: any) => {
 }
 
 const fetchActivityDetail = async () => {
+  isLoading.value = true
   try {
     const response = await ticketApi.getMbTicketList({})
-
     const list = extractActivityList(response)
-
     const matched = list.find((item: { rowId?: number }) => Number(item.rowId) === activityId.value)
-
     if (matched) {
       applyActivityDetail(matched)
+      // 9、手机短信验证
+      const limitList = (Array.isArray(matched.limit) ? matched.limit : []) as Array<
+        number | string
+      >
+      needVerify.value = limitList.some((value: number | string) => Number(value) === 9)
     } else if (list.length > 0) {
+      needVerify.value = false
       showToast({
         message: '未获取到该活动信息',
         position: 'top'
@@ -285,17 +512,24 @@ const fetchActivityDetail = async () => {
       position: 'top'
     })
     console.error('活动列表失败:', error)
+  } finally {
+    isLoading.value = false
   }
 }
 
 onMounted(async () => {
+  // huoqu 活动列表
   await fetchActivityDetail()
 
   // 会员签到信息
   try {
-    const response = await checkinApi.mbSign({ activityId: activityId.value, verifyCode })
+    const response = await checkinApi.mbSign({
+      activityId: activityId.value,
+      verifyCode: verifyCodeInput.value
+    })
     signInfo.value = response.result
     console.log('----mbSign-signInfo----:', response)
+    applySignProgress(response.result)
     // if (response.result?.signDays) {
     //   const targetIndex = Math.max(
     //     0,
@@ -317,38 +551,6 @@ onMounted(async () => {
     })
     console.error('mbSign 失败:', error)
   }
-  // ToDo：获取会员信息
-  try {
-    const response = await smsApi.selectMember({ memberId: '1000011590' })
-
-    console.log('----selectMember----:', response)
-    phoneNumber.value = (response.result?.memberId ?? '').trim()
-    areaCode.value = (response.result?.areaCode ?? '').trim()
-
-    // 1) 接口失败：直接提示并结束
-    if (response.code !== 'C2') {
-      showToast({
-        message: response.message || '获取会员信息失败',
-        position: 'top'
-      })
-      return
-    }
-
-    // 2) 接口成功但未绑定手机号：提示并结束
-    if (!phoneNumber.value) {
-      showToast({
-        message: '请绑定手机号后再进行签到',
-        position: 'top'
-      })
-      return
-    }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : '获取会员信息失败'
-    showToast({
-      message: message,
-      position: 'top'
-    })
-  }
 
   window.addEventListener('scroll', handleScroll)
 })
@@ -369,14 +571,16 @@ onUnmounted(() => {
       :class="{ 'is-visible': showTopOverlay }"
       alt=""
     />
-    <div class="check-in-modal">
+    <CheckinSkeleton v-if="isLoading" />
+
+    <div v-else class="check-in-modal">
       <div class="modal-bg" :style="{ backgroundImage: `url(${activityBackground})` }" />
 
       <header class="modal-header">
         <div class="start-tag">{{ startTagText }}</div>
-        <button class="back-btn" aria-label="Back">
+        <!-- <button class="back-btn" aria-label="Back">
           <span class="back-icon" />
-        </button>
+        </button> -->
       </header>
 
       <div class="title">{{ activityTitle }}</div>
@@ -389,6 +593,7 @@ onUnmounted(() => {
         :next="nextCard"
         :direction="direction"
         :is-resetting="isResetting"
+        :symbol="symbol"
         @prev="slide('prev')"
         @next="slide('next')"
         @center-click="handleCenterClick"
@@ -397,22 +602,28 @@ onUnmounted(() => {
         @pointercancel="onPointerCancel"
       />
 
-      <section class="bonus-section" role="button" @click="goToDetail">
+      <section class="bonus-section" role="button">
         <div class="bonus-header">
           <img :src="checkinGiftBox" alt="gift box" class="gift-icon" />
           <div class="title-container">
             <div class="title-wrapper">
               <span class="bonus-title">CHECK-IN BONUS</span>
-              <div class="rules">
+              <div class="rules" @click="goToDetail">
                 <span class="rules-text">Check-In Rules</span>
                 <img :src="rulesIcon" alt="rules" class="rules-icon" />
               </div>
             </div>
-            <p class="bonus-subtitle">Cumulative check-ins earn more rewards</p>
+            <p class="bonus-subtitle">{{ bonusSubtitle }}</p>
           </div>
         </div>
 
-        <CheckInBonusGrid :list="bonusList" :symbol="symbol" />
+        <CheckInBonusGrid :list="bonusList" :symbol="symbol" @item-click="handleBonusItemClick" />
+
+        <CheckInConditionsPopup
+          v-model:show="showConditionsPopup"
+          :item="conditionsItem"
+          :symbol="symbol"
+        />
       </section>
 
       <VerifyPhonePopup
@@ -504,16 +715,16 @@ onUnmounted(() => {
   color: #f15e62;
 }
 
-.back-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  background: rgba(244, 122, 122, 0.2);
-  border: 1px solid #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+// .back-btn {
+//   width: 38px;
+//   height: 38px;
+//   border-radius: 999px;
+//   background: rgba(244, 122, 122, 0.2);
+//   border: 1px solid #ffffff;
+//   display: flex;
+//   align-items: center;
+//   justify-content: center;
+// }
 
 .back-icon {
   width: 16px;

@@ -13,12 +13,27 @@ type BonusItem = {
   rechargeAmount?: number | string | null
   amountRange?: number[] | null
   rewardAmount?: number | string | null
+  receivedAmount?: number | string | null
+  isReceived?: boolean | null
 }
 
 const props = defineProps<{
   list: BonusItem[]
   symbol?: string
 }>()
+
+const emit = defineEmits<{
+  itemClick: [BonusItem]
+}>()
+
+const hasRequirements = (item: BonusItem) => {
+  const rechargeTarget = Number(item?.rechargeAmount)
+  const betTarget = Number(item?.betAmount)
+  return (
+    (Number.isFinite(rechargeTarget) && rechargeTarget > 0) ||
+    (Number.isFinite(betTarget) && betTarget > 0)
+  )
+}
 
 const resolveTicketIcon = (item: BonusItem) => {
   const type = item?.ticketType == null ? null : Number(item.ticketType)
@@ -32,7 +47,7 @@ const resolveTicketIcon = (item: BonusItem) => {
 const formatDay = (item: BonusItem) => {
   if (item?.day == null || item.day === '') return '--'
   const text = String(item.day).trim()
-  return /day/i.test(text) ? text : `DAY ${text}`
+  return /day/i.test(text) ? text : `${text}DAY`
 }
 
 const formatAmount = (item: BonusItem) => {
@@ -40,6 +55,10 @@ const formatAmount = (item: BonusItem) => {
   const withSymbol = (value: number | string | null | undefined) => {
     if (value == null || value === '') return '--'
     return props.symbol ? `${props.symbol}${value}` : `${value}`
+  }
+
+  if (item?.isReceived && item.receivedAmount != null && item.receivedAmount !== '') {
+    return withSymbol(item.receivedAmount)
   }
 
   if (hasRange && item.amountRange?.[0] !== item.amountRange?.[1]) {
@@ -55,6 +74,12 @@ const formatAmount = (item: BonusItem) => {
 
   return '--'
 }
+
+const handleItemClick = (item: BonusItem) => {
+  if (item?.isReceived) return
+  if (!hasRequirements(item)) return
+  emit('itemClick', item)
+}
 </script>
 
 <template>
@@ -62,8 +87,14 @@ const formatAmount = (item: BonusItem) => {
     <div
       v-for="(item, index) in props.list"
       :key="item.ticketId ?? item.day ?? index"
-      class="bonus-card"
+      :class="['bonus-card', { 'is-received': item.isReceived }]"
+      role="button"
+      @click.stop="handleItemClick(item)"
     >
+      <div v-if="item.isReceived" class="corner-badge">
+        <div class="corner-bg"></div>
+        <div class="corner-text">Claimed</div>
+      </div>
       <img :src="resolveTicketIcon(item)" alt="ticket" class="ticket" />
       <div class="bonus-info">
         <span class="bonus-day">{{ formatDay(item) }}</span>
@@ -82,6 +113,7 @@ const formatAmount = (item: BonusItem) => {
 }
 
 .bonus-card {
+  position: relative;
   width: 100%;
   min-height: 51.62px;
   background: #ffdfe1;
@@ -92,6 +124,48 @@ const formatAmount = (item: BonusItem) => {
   align-items: center;
   gap: 7px;
   box-sizing: border-box;
+}
+
+.bonus-card.is-received {
+  cursor: not-allowed;
+  pointer-events: none; /* 核心：禁止点击 */
+  opacity: 0.6; /* 核心：视觉变淡 */
+}
+
+.corner-badge {
+  position: absolute;
+  width: 55px;
+  height: 18px;
+  right: 1px;
+  top: 1px;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.corner-bg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 55px;
+  height: 18px;
+  background: #a7e5ab;
+  border-radius: 0px 11px 0px 13px;
+}
+
+.corner-text {
+  position: absolute;
+  left: 9px;
+  top: 3px;
+  width: 39px;
+  height: 12px;
+  font-family: 'Inter', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 10px;
+  line-height: 12px;
+  display: flex;
+  align-items: center;
+  color: #ffffff;
 }
 
 .ticket {
