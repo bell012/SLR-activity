@@ -52,6 +52,13 @@ const formatDay = (item: BonusItem) => {
 
 const formatAmount = (item: BonusItem) => {
   const hasRange = Array.isArray(item?.amountRange) && item.amountRange.length >= 2
+  const formatK = (value: number | string | null | undefined) => {
+    const numeric = Number(value)
+    if (Number.isFinite(numeric) && numeric >= 1000 && numeric % 1000 === 0) {
+      return `${numeric / 1000}K`
+    }
+    return value == null ? '--' : String(value)
+  }
   const withSymbol = (value: number | string | null | undefined) => {
     if (value == null || value === '') return '--'
     return props.symbol ? `${props.symbol}${value}` : `${value}`
@@ -64,8 +71,10 @@ const formatAmount = (item: BonusItem) => {
   if (hasRange && item.amountRange?.[0] !== item.amountRange?.[1]) {
     const min = item.amountRange?.[0]
     const max = item.amountRange?.[1]
-    if (props.symbol) return `${props.symbol}${min}～${props.symbol}${max}`
-    return `${min}～${max}`
+    const minText = formatK(min)
+    const maxText = formatK(max)
+    if (props.symbol) return `${props.symbol}${minText}～${props.symbol}${maxText}`
+    return `${minText}～${maxText}`
   }
 
   if (item?.rewardAmount != null && item.rewardAmount !== '') {

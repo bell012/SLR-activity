@@ -87,12 +87,6 @@ const lottieStyle = computed(() => {
 
 const isCurrentReceived = computed(() => Boolean(props.current?.isReceived))
 
-const cardBackground = computed(() => {
-  if (isCurrentReceived.value) return `url(${checkinCardMain})`
-  if (!isFlipped.value) return ''
-  return hasRequirements.value ? `url(${checkinDecorationBg})` : `url(${checkinCardMain})`
-})
-
 const normalizeAmount = (value: number | string | null | undefined) => {
   const numeric = Number(value)
   return Number.isFinite(numeric) && numeric > 0 ? numeric : 0
@@ -103,6 +97,19 @@ const betTarget = computed(() => normalizeAmount(props.current?.betAmount))
 const depositProgressValue = computed(() => normalizeAmount(props.current?.depositProgress))
 const betProgressValue = computed(() => normalizeAmount(props.current?.betProgress))
 const hasRequirements = computed(() => depositTarget.value > 0 || betTarget.value > 0)
+const showRequirementsPanel = computed(
+  () => hasRequirements.value && (isFlipped.value || isCurrentReceived.value)
+)
+const showDivider = computed(
+  () => !hasRequirements.value && (isCurrentReceived.value || isFlipped.value)
+)
+
+const cardBackground = computed(() => {
+  if (showRequirementsPanel.value) return `url(${checkinDecorationBg})`
+  if (isCurrentReceived.value) return `url(${checkinCardMain})`
+  if (!isFlipped.value) return ''
+  return `url(${checkinCardMain})`
+})
 
 const applyDayLayerScale = (data: any, scale: number) => {
   if (!Array.isArray(data?.layers)) return data
@@ -159,7 +166,9 @@ const getFlipAnimationData = () =>
   buildAnimationData(cardFlipAnim, resolveDayImage(props.current.day), FLIP_DAY_ASSET_ID)
 
 const onCenterClick = () => {
-  if (isFlipped.value || isCurrentReceived.value) return
+  if (isFlipped.value) return
+  if (isCurrentReceived.value && hasRequirements.value) return
+  if (isCurrentReceived.value) return
   emit('centerClick')
 }
 
@@ -256,14 +265,14 @@ defineExpose({ playFlip })
         :style="lottieStyle"
       />
       <img
-        v-show="isCurrentReceived || (isFlipped && !hasRequirements && !isCurrentReceived)"
+        v-show="showDivider"
         :src="checkinVectorDivider"
         alt=""
         aria-hidden="true"
         class="card-divider"
       />
       <CheckInConditionsPanel
-        v-if="isFlipped && hasRequirements && !isCurrentReceived"
+        v-if="showRequirementsPanel"
         class="card-requirements"
         :day="current.day"
         :deposit-target="depositTarget"

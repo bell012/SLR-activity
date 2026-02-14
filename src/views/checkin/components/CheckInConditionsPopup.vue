@@ -1,6 +1,7 @@
 <script setup lang="ts">
+import closeIcon from '@/static/ticket/close.png'
+import { computed } from 'vue'
 import CheckInConditionsPanel from './CheckInConditionsPanel.vue'
-import closeIcon from '@/assets/common/close-icon.svg'
 
 type ConditionsItem = {
   day?: number | string
@@ -10,27 +11,39 @@ type ConditionsItem = {
   betProgress?: number | string | null
 }
 
-defineProps<{
+const props = defineProps<{
   show: boolean
   item: ConditionsItem | null
   symbol?: string
+  conditionRelation?: number | string | null
 }>()
 
 const emit = defineEmits<{
   'update:show': [boolean]
 }>()
+
+const normalizeAmount = (value: number | string | null | undefined) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : 0
+}
+
+const hasDeposit = computed(() => normalizeAmount(props.item?.rechargeAmount) > 0)
+const hasBet = computed(() => normalizeAmount(props.item?.betAmount) > 0)
+const bothRequirements = computed(() => hasDeposit.value && hasBet.value)
+const relationValue = computed(() => Number(props.conditionRelation))
+
+const bottomTitle = computed(() => {
+  if (!bothRequirements.value) return 'Complete the above tasks to check in'
+  if (Number.isFinite(relationValue.value) && relationValue.value === 1) {
+    return 'Complete the above tasks to check in'
+  }
+  return 'Complete any requirement to check in'
+})
 </script>
 
 <template>
-  <van-popup
-    :show="show"
-    :overlay="true"
-    overlay-class="conditions-overlay"
-    :close-on-click-overlay="true"
-    class="conditions-popup"
-    @update:show="(value: boolean) => emit('update:show', value)"
-  >
-    <div class="conditions-dialog">
+  <div v-if="show" class="popup-overlay" @click="emit('update:show', false)">
+    <div class="conditions-dialog" @click.stop>
       <button
         class="conditions-close"
         type="button"
@@ -39,59 +52,92 @@ const emit = defineEmits<{
       >
         <img :src="closeIcon" alt="Close" />
       </button>
-      <CheckInConditionsPanel
-        v-if="item"
-        :day="item.day"
-        :deposit-target="item.rechargeAmount"
-        :deposit-progress="item.depositProgress"
-        :bet-target="item.betAmount"
-        :bet-progress="item.betProgress"
-        :symbol="symbol"
-        class="conditions-panel"
-      />
+
+      <div class="popup-content">
+        <h2 class="title">CDaily Check-in Task</h2>
+        <CheckInConditionsPanel
+          v-if="item"
+          :is-show-day="false"
+          :day="item.day"
+          :deposit-target="item.rechargeAmount"
+          :deposit-progress="item.depositProgress"
+          :bet-target="item.betAmount"
+          :bet-progress="item.betProgress"
+          :symbol="symbol"
+          class="conditions-panel"
+        />
+        <h2 class="bottom—title">{{ bottomTitle }}</h2>
+      </div>
     </div>
-  </van-popup>
+  </div>
 </template>
 
 <style scoped lang="scss">
-.conditions-popup {
-  padding: 0;
-  background: transparent;
-}
-
-:deep(.conditions-overlay) {
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
+.popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #00000099;
+  backdrop-filter: blur(5px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  box-sizing: border-box;
 }
 
 .conditions-dialog {
   position: relative;
-  width: 320px;
-  max-width: 88vw;
-  padding: 24px 16px;
-  border-radius: 18px;
-  background: #fff7f0;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  width: 100%;
+  height: 320px;
+  background: url('@/assets/common/checkin-popup-bg.png') no-repeat;
+  background-size: 100% 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 30px 30px;
 }
+.popup-content {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 
+  .title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #f10e3d;
+    text-align: center;
+  }
+  .bottom—title {
+    font-size: 13px;
+    font-weight: 400;
+    color: #bc6513;
+    text-align: center;
+
+    // width: 100%;
+    margin-top: 10px;
+  }
+}
 .conditions-close {
   position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 28px;
-  height: 28px;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 25px;
+  height: 25px;
   border: none;
-  border-radius: 50%;
-  background: rgba(146, 146, 146, 0.1);
-  border: 1px solid rgba(149, 147, 147, 0.4);
+  background: transparent;
   cursor: pointer;
 }
 
 .conditions-panel {
   position: relative;
   inset: auto;
-  width: 100%;
-  margin-top: 8px;
+  width: 75%;
+  margin-top: 0;
 }
 
 :deep(.card-requirements) {

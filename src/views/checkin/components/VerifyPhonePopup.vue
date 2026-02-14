@@ -100,7 +100,7 @@ watch(
 
       <div class="verify-resend-row" aria-live="polite">
         <button v-if="canResend" class="verify-resend-btn" type="button" @click="emit('resend')">
-          Resend
+          Reacquire
         </button>
         <span v-else-if="secondsLeft > 0" class="verify-resend-text">
           Resend in {{ secondsLeft }} seconds

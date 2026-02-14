@@ -7,6 +7,13 @@ export interface ApiResponse<T> {
   result: T
 }
 
+export interface SyDlicghResult {
+  baseSiteConfig: BaseSiteConfigResult[]
+}
+export interface BaseSiteConfigResult {
+  ossDomain?: string
+}
+
 export interface MbSignResult {
   todayIsSign: boolean
   signDays: number
@@ -173,7 +180,15 @@ export const mbSign = (params: { activityId: number; verifyCode: string }) => {
   )
 }
 
+export const syDlicgh = (params: {}) => {
+  return request.post<ApiResponse<SyDlicghResult>, ApiResponse<SyDlicghResult>>(
+    '/sy/dlicgh',
+    params
+  )
+}
+
 export default {
   receiveReward,
-  mbSign
+  mbSign,
+  syDlicgh
 }

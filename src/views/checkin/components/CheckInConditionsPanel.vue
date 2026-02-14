@@ -1,16 +1,28 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import checkinDecorationLeft from '@/assets/svg/checkin/checkin-decoration-left.svg'
 import checkinDecorationRight from '@/assets/svg/checkin/checkin-decoration-right.svg'
+import { computed } from 'vue'
 
-const props = defineProps<{
-  day?: string | number
-  depositTarget?: number | string | null
-  depositProgress?: number | string | null
-  betTarget?: number | string | null
-  betProgress?: number | string | null
-  symbol?: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    day?: string | number
+    depositTarget?: number | string | null
+    depositProgress?: number | string | null
+    betTarget?: number | string | null
+    betProgress?: number | string | null
+    symbol?: string
+    isShowDay?: boolean
+  }>(),
+  {
+    day: '',
+    depositTarget: 0,
+    depositProgress: 0,
+    betTarget: 0,
+    betProgress: 0,
+    symbol: '',
+    isShowDay: true
+  }
+)
 
 const normalizeAmount = (value: number | string | null | undefined) => {
   const numeric = Number(value)
@@ -49,7 +61,7 @@ const betPercent = computed(() => {
 
 <template>
   <div class="card-requirements">
-    <div class="card-day-row">
+    <div v-if="isShowDay" class="card-day-row">
       <img :src="checkinDecorationLeft" alt="" aria-hidden="true" class="card-decor" />
       <span class="card-day-text">{{ formatDayLabel(day) }}</span>
       <img :src="checkinDecorationRight" alt="" aria-hidden="true" class="card-decor" />

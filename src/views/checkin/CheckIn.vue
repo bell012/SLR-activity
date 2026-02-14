@@ -2,19 +2,27 @@
 import { checkinApi, smsApi, ticketApi } from '@/api'
 import type { MbSignResult, ReceiveRewardResult } from '@/api/checkin'
 
+import { useAppStore } from '@/store/modules/app'
 import { showToast } from 'vant'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCheckInSlider } from './composables/useCheckInSlider'
 
+import activityTitleImg from '@/assets/png/checkin/checkin-activity-title.png'
+import checkinBtnActive from '@/assets/png/checkin/checkin-btn-active.png'
+import checkinBtnDisabled from '@/assets/png/checkin/checkin-btn-disabled.png'
+import rulesIcon from '@/assets/svg/checkin/rules-icon.svg'
+
 import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
 import checkinGiftBox from '@/assets/svg/checkin/checkin-gift-box.svg'
 import checkinTopScrollOverlay from '@/assets/svg/checkin/checkin-top-scroll-overlay.svg'
-import rulesIcon from '@/assets/svg/checkin/rules-icon.svg'
+import PopupBig from '@/views/ticket/component/PopupBig.vue'
+import PopupSmall from '@/views/ticket/component/PopupSmall.vue'
 import CheckinSkeleton from './CheckIn-skeleton.vue'
 import CheckInBonusGrid from './components/CheckInBonusGrid.vue'
 import CheckInCardDeck from './components/CheckInCardDeck.vue'
 import CheckInConditionsPopup from './components/CheckInConditionsPopup.vue'
+import CheckInCustomStyle from './components/CheckInCustomStyle.vue'
 import VerifyPhonePopup from './components/VerifyPhonePopup.vue'
 
 const SLIDE_DURATION = 360
@@ -22,6 +30,7 @@ const SLIDE_DURATION = 360
 const needVerify = ref(false)
 const router = useRouter()
 const route = useRoute()
+const appStore = useAppStore()
 
 const pickLocalizedText = (
   list?: Array<{ languageCode?: string; name?: string }>,
@@ -65,12 +74,7 @@ const resolveImage = (value?: string) => {
 }
 
 const activityDetail = ref<any | null>(null)
-const activityTitle = computed(
-  () =>
-    pickLocalizedText(activityDetail.value?.activityName) ||
-    activityDetail.value?.activiName ||
-    'CHECK-IN EVENT'
-)
+
 const activitySubtitle = computed(
   () =>
     pickLocalizedText(activityDetail.value?.activityDesc) ||
@@ -108,6 +112,15 @@ const activityBackground = computed(() => {
   const config = activityDetail.value?.config?.PHP
   return resolveImage(config?.bgImage || config?.bgLogo) || checkinBg
 })
+const conditionRelation = computed(() => activityDetail.value?.config?.PHP?.conditionRelation)
+const styleType = computed(() => Number(activityDetail.value?.config?.PHP?.styleType ?? 1))
+const isCustomStyle = computed(() => styleType.value === 2)
+const customChestImage = computed(
+  () => resolveImage(activityDetail.value?.preImage) || activityDetail.value?.preImage || ''
+)
+const customButtonBg = computed(() =>
+  customButtonState.value.disabled ? checkinBtnDisabled : checkinBtnActive
+)
 
 type BonusItem = {
   day?: number | string
@@ -142,7 +155,7 @@ const {
 } = slider
 
 // TODO：后续url取值，，暂时固定
-const activityId = computed(() => Number(route.query.activityId) || 111)
+const activityId = computed(() => Number(route.query.activityId) || 100044)
 
 const signInfo = ref<MbSignResult | null>(null)
 const rewardInfo = ref<ReceiveRewardResult | null>(null)
@@ -150,15 +163,58 @@ const cardDeckRef = ref<InstanceType<typeof CheckInCardDeck> | null>(null)
 const showVerifyPopup = ref(false)
 const showConditionsPopup = ref(false)
 const conditionsItem = ref<BonusItem | null>(null)
+const smallPopupVisible = ref(false)
+const bigPopupVisible = ref(false)
+const rewardsList = ref([
+  {
+    icon: '/src/static/ticket/card_jindan.png',
+    description: 'Register and get ₱3-₱888 bonus!',
+    quantity: 1,
+    bgColor: '#FEE554'
+  },
+  {
+    icon: '/src/static/ticket/card_zhuanpan.png',
+    description: 'Register and get ₱3-₱888 bonus!',
+    quantity: 10,
+    bgColor: '#FA9CFF'
+  },
+  {
+    icon: '/src/static/ticket/card_hongbao.png',
+    description: 'Register and get ₱3-₱888 bonus!',
+    quantity: 5,
+    bgColor: '#fba1a4'
+  },
+  {
+    icon: '/src/static/ticket/card_xianjin.png',
+    description: 'Register and get ₱3-₱888 bonus!',
+    quantity: 3,
+    bgColor: '#9affb1'
+  }
+])
 // TODO： 校验验证码接口，暂时固定
 const verifyCodeInput = ref('123456')
 const canResend = ref(false)
 const resendSeconds = ref(0)
 const resendTimer = ref<number | null>(null)
 const isSendingSms = ref(false)
+const lastSmsSentAt = ref(0)
+const SMS_COOLDOWN_SECONDS = 60
+const SMS_COOLDOWN_MS = SMS_COOLDOWN_SECONDS * 1000
 const phoneNumber = ref('')
 // 国家区号
 const areaCode = ref('+63')
+
+const maskPhoneNumber = (value: string) => {
+  const raw = value?.trim() || ''
+  if (!raw) return ''
+  if (raw.length <= 7) return raw
+  const start = raw.slice(0, 3)
+  const end = raw.slice(-4)
+  const maskLength = Math.max(0, raw.length - 7)
+  return `${start}${'*'.repeat(maskLength)}${end}`
+}
+
+const maskedPhoneNumber = computed(() => maskPhoneNumber(phoneNumber.value))
 
 const showTopOverlay = ref(false)
 
@@ -264,9 +320,44 @@ const goToDetail = () => {
   })
 }
 
+const showTestPopups = () => {
+  smallPopupVisible.value = true
+  bigPopupVisible.value = true
+}
+
 const handleBonusItemClick = (item: BonusItem) => {
   conditionsItem.value = item
   showConditionsPopup.value = true
+}
+
+const customButtonState = computed(() => {
+  const current = currentCard.value
+  if (!current) {
+    return { text: 'Claim Bonus', disabled: true }
+  }
+  const isToday = currentIndex.value === getAllowedSignIndex()
+  const hasLimit = hasRequirementLimit(current)
+  const isMet = isRequirementMet(current)
+  const isReceived = Boolean(current.isReceived)
+  const startDate = activityDetail.value?.startDate
+  const notStarted = startDate != null && Date.now() < Number(startDate)
+
+  if (notStarted) {
+    return { text: 'Coming Soon', disabled: true }
+  }
+  if (isReceived) {
+    return { text: 'Claimed', disabled: true }
+  }
+  if (isToday && (!hasLimit || isMet)) {
+    return { text: 'Claim Bonus', disabled: false }
+  }
+  return { text: 'Claim Bonus', disabled: true }
+})
+
+const handleCustomButtonClick = () => {
+  const state = customButtonState.value
+  if (state.disabled) return
+  void handleCenterClick()
 }
 
 const handleCenterClick = async () => {
@@ -277,7 +368,12 @@ const handleCenterClick = async () => {
   const isMet = isRequirementMet(current)
   const isReceived = Boolean(current.isReceived)
 
-  if (isReceived) return
+  if (isReceived) {
+    if (hasLimit) {
+      cardDeckRef.value?.playFlip()
+    }
+    return
+  }
   if (!isToday) {
     if (hasLimit) {
       cardDeckRef.value?.playFlip()
@@ -403,7 +499,7 @@ const handleVerifySubmit = async () => {
   }
 }
 
-const startResendCountdown = (seconds = 60) => {
+const startResendCountdown = (seconds = SMS_COOLDOWN_SECONDS) => {
   if (resendTimer.value) {
     window.clearInterval(resendTimer.value)
   }
@@ -445,7 +541,8 @@ const sendSmsCode = async () => {
       })
       return
     }
-    startResendCountdown(60)
+    lastSmsSentAt.value = Date.now()
+    startResendCountdown(SMS_COOLDOWN_SECONDS)
   } catch (error) {
     showToast({ message: '发送验证码失败', position: 'top' })
     canResend.value = true
@@ -462,6 +559,12 @@ watch(
       verifyCodeInput.value = ''
       canResend.value = false
       resendSeconds.value = 0
+      const elapsed = Date.now() - lastSmsSentAt.value
+      if (lastSmsSentAt.value && elapsed < SMS_COOLDOWN_MS) {
+        const remain = Math.ceil((SMS_COOLDOWN_MS - elapsed) / 1000)
+        startResendCountdown(remain)
+        return
+      }
       void sendSmsCode()
     } else if (resendTimer.value) {
       window.clearInterval(resendTimer.value)
@@ -521,6 +624,29 @@ onMounted(async () => {
   // huoqu 活动列表
   await fetchActivityDetail()
 
+  try {
+    // 后台服务器配置：获取图片服务器地址
+    const response = await checkinApi.syDlicgh({
+      activityId: activityId.value,
+      verifyCode: verifyCodeInput.value
+    })
+    appStore.setOssDomain(response.result?.baseSiteConfig?.ossDomain || '')
+    if (!appStore.ossDomain) {
+      showToast({
+        message: response.message || '获取图片服务器地址失败',
+        position: 'top'
+      })
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : '获取图片服务器地址失败'
+
+    showToast({
+      message: message,
+      position: 'top'
+    })
+    console.error('mbSign 失败:', error)
+  }
+
   // 会员签到信息
   try {
     const response = await checkinApi.mbSign({
@@ -578,15 +704,24 @@ onUnmounted(() => {
 
       <header class="modal-header">
         <div class="start-tag">{{ startTagText }}</div>
-        <button class="back-btn" aria-label="Back">
+        <button class="back-btn" aria-label="Back" @click="showTestPopups">
           <span class="back-icon" />
         </button>
       </header>
 
-      <div class="title">{{ activityTitle }}</div>
+      <div class="title-img"><img :src="activityTitleImg" alt="activity title" /></div>
       <p class="subtitle">{{ activitySubtitle }}</p>
 
+      <CheckInCustomStyle
+        v-if="isCustomStyle"
+        :image-url="customChestImage"
+        :button-text="customButtonState.text"
+        :button-disabled="customButtonState.disabled"
+        :button-bg="customButtonBg"
+        @action="handleCustomButtonClick"
+      />
       <CheckInCardDeck
+        v-else
         ref="cardDeckRef"
         :current="currentCard"
         :prev="prevCard"
@@ -623,18 +758,37 @@ onUnmounted(() => {
           v-model:show="showConditionsPopup"
           :item="conditionsItem"
           :symbol="symbol"
+          :condition-relation="conditionRelation"
         />
       </section>
 
       <VerifyPhonePopup
         v-model:show="showVerifyPopup"
         v-model:code="verifyCodeInput"
-        :phone="'+' + areaCode + phoneNumber"
+        :phone="'+' + areaCode + '-' + maskedPhoneNumber"
         :can-resend="canResend"
         :seconds-left="resendSeconds"
         :is-sending="isSendingSms"
         @resend="handleResendCode"
         @submit="handleVerifySubmit"
+      />
+
+      <PopupSmall
+        :visible="smallPopupVisible"
+        subtitle="You've Earned Bonus"
+        amount="100.00"
+        button-text="NEXT ROUND"
+        @close="smallPopupVisible = false"
+        @action="smallPopupVisible = false"
+      />
+
+      <PopupBig
+        :visible="bigPopupVisible"
+        subtitle="You've Earned Bonus"
+        :rewards="rewardsList"
+        button-text="USE NOW"
+        @close="bigPopupVisible = false"
+        @action="bigPopupVisible = false"
       />
     </div>
   </div>
@@ -753,18 +907,31 @@ onUnmounted(() => {
   transform: translate(-20%, -50%) rotate(30deg);
 }
 
-.title {
+.title-img {
+  width: 257px;
+  height: 37px;
   position: relative;
-  margin-top: 10px;
-  font-family: 'AaHouDiHei', 'Inter', sans-serif;
-  font-weight: 400;
-  font-size: 30px;
-  font-style: normal;
-  color: #ffffff;
   z-index: 2;
-  -webkit-text-stroke: 2px #ffa6a0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
 
-  text-shadow: none;
+  // margin-top: 10px;
+  // font-family: 'AaHouDiHei', 'Inter', sans-serif;
+  // font-weight: 400;
+  // font-size: 30px;
+  // font-style: normal;
+  // color: #ffffff;
+  // z-index: 2;
+  // -webkit-text-stroke: 2px #ffa6a0;
+
+  // text-shadow: none;
+}
+
+.title-img img {
+  width: 100%;
+  height: 65%;
+  display: block;
 }
 
 .subtitle {

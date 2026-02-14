@@ -1,99 +1,38 @@
 <script setup lang="ts">
+/* eslint-disable vue/no-v-html */
+import { ticketApi } from '@/api'
+import backIcon from '@/assets/png/checkin/back-icon.png'
+import { useAppStore } from '@/store/modules/app'
+import { showToast } from 'vant'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ticketApi } from '@/api'
-import { showToast } from 'vant'
-
 const router = useRouter()
 const route = useRoute()
+const appStore = useAppStore()
 const activityId = computed(() => Number(route.query.activityId) || 0)
-
-const pickLocalizedText = (
-  list?: Array<{ languageCode?: string; name?: string }>,
-  fallback = ''
-) => {
-  if (!Array.isArray(list) || list.length === 0) return fallback
-  const target =
-    list.find((item) => item.languageCode === 'eng' || item.languageCode === 'en') || list[0]
-  return target?.name || fallback
-}
-
-const formatDate = (value?: number) => {
-  if (!value) return ''
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: '2-digit',
-    year: 'numeric'
-  }).format(new Date(value))
-}
-
-const getCurrencySymbol = (currency?: string) => {
-  const map: Record<string, string> = {
-    PHP: '₱',
-    USD: '$',
-    EUR: '€',
-    GBP: '£'
-  }
-  if (!currency) return ''
-  return map[currency] ?? `${currency} `
-}
-
-const formatAmount = (amount: number | string | undefined, currency?: string) => {
-  if (amount == null || amount === '') return '-'
-  const symbol = getCurrencySymbol(currency)
-  return symbol ? `${symbol}${amount}` : `${amount}`
-}
-
-const resolveImage = (value?: string) => {
-  if (!value) return ''
-  if (value.startsWith('http') || value.startsWith('data:')) return value
-  return ''
-}
-
 const activityDetail = ref<any | null>(null)
 
-const activityTitle = computed(
-  () =>
-    pickLocalizedText(activityDetail.value?.activityName) ||
-    activityDetail.value?.activiName ||
-    'Daily Check-In Event'
-)
-const activitySubtitle = computed(
-  () =>
-    pickLocalizedText(activityDetail.value?.activityDesc) ||
-    'Check in daily and meet the requirements to claim rewards.'
-)
-const startDateText = computed(() => formatDate(activityDetail.value?.startDate))
-const endDateText = computed(() => formatDate(activityDetail.value?.endDate))
-const currency = computed(
-  () => activityDetail.value?.config?.PHP?.currency || activityDetail.value?.currencyList?.[0]
-)
+const buildOssUrl = (value?: string) => {
+  if (!value) return ''
+  if (value.startsWith('http') || value.startsWith('data:')) return value
+  const base = appStore.ossDomain?.replace(/\/$/, '') || ''
+  if (!base) return value
+  const path = value.startsWith('/') ? value : `/${value}`
+  return `${base}${path}`
+}
+
+const heroImage = computed(() => buildOssUrl(activityDetail.value?.preImage))
 const ruleDesc = computed(() => activityDetail.value?.config?.PHP?.ruleDesc || '')
-const bannerImage = computed(() => {
-  const config = activityDetail.value?.config?.PHP
-  return resolveImage(config?.bgImage || config?.bgLogo || activityDetail.value?.homeLogo)
-})
-const signList = computed(() => {
-  const sign = activityDetail.value?.config?.PHP?.sign
-  if (!Array.isArray(sign)) return []
-  return sign.map((item: { day?: number; rewardAmount?: number }) => ({
-    day: item.day ?? 0,
-    amount: formatAmount(item.rewardAmount, currency.value)
-  }))
-})
 
 const extractActivityList = (response: any) => {
-  if (Array.isArray(response)) return response
-  if (Array.isArray(response?.data)) return response.data
+  if (Array.isArray(response?.result?.records)) return response.result.records
   if (Array.isArray(response?.result)) return response.result
+  if (Array.isArray(response)) return response
   return []
 }
 
 const fetchActivityDetail = async () => {
-  if (!activityId.value) {
-    showToast({ message: '缺少活动 ID', position: 'top' })
-    return
-  }
+  if (!activityId.value) return
   try {
     const response = await ticketApi.getMbTicketList({})
     const list = extractActivityList(response)
@@ -104,8 +43,8 @@ const fetchActivityDetail = async () => {
     }
     showToast({ message: '未找到活动信息', position: 'top' })
   } catch (error) {
-    console.error('活动详情失败:', error)
     showToast({ message: '活动详情获取失败', position: 'top' })
+    console.error('活动详情失败:', error)
   }
 }
 
@@ -114,265 +53,325 @@ onMounted(fetchActivityDetail)
 
 <template>
   <div class="detail-page">
-    <header class="detail-header">
-      <button class="back-btn" type="button" aria-label="Back" @click="router.back()">
-        <span class="back-icon" />
-      </button>
-      <div class="header-text">
-        <p class="header-label">Check-In Details</p>
-        <h1 class="header-title">{{ activityTitle }}</h1>
-      </div>
-    </header>
+    <div class="detail-scale">
+      <div class="detail-content">
+        <header class="detail-header">
+          <button class="detail-back" type="button" aria-label="Back" @click="router.back()">
+            <span
+              class="detail-back-icon"
+              :style="{ backgroundImage: `url(${backIcon})` }"
+              aria-hidden="true"
+            />
+          </button>
 
-    <section class="hero-card">
-      <div class="hero-media">
-        <img v-if="bannerImage" :src="bannerImage" alt="" class="hero-image" />
-        <div v-else class="hero-placeholder">CHECK-IN</div>
-      </div>
-      <div class="hero-body">
-        <h2 class="hero-title">{{ activityTitle }}</h2>
-        <p class="hero-desc">{{ activitySubtitle }}</p>
-        <div class="hero-meta">
-          <div class="meta-item">
-            <span class="meta-label">Start</span>
-            <span class="meta-value">{{ startDateText || '--' }}</span>
-          </div>
-          <div class="meta-item">
-            <span class="meta-label">End</span>
-            <span class="meta-value">{{ endDateText || '--' }}</span>
-          </div>
+          <h1 class="detail-title">Event Rewards</h1>
+        </header>
+
+        <div class="detail-body">
+          <section class="hero-card">
+            <div class="hero-overlay" />
+            <div class="hero-text">
+              <div class="hero-title">CHECK-IN EVENT</div>
+              <div class="hero-subtitle">Check in every day for cash rewards</div>
+            </div>
+            <div class="hero-pill">Prize money up to 8888</div>
+            <div class="hero-visual">
+              <div class="hero-glow" />
+              <img v-if="heroImage" :src="heroImage" alt="event" class="hero-image" />
+            </div>
+          </section>
+
+          <section class="social-row">
+            <div class="social-item">
+              <div class="social-icon" />
+              <div class="social-label">Telegram</div>
+            </div>
+            <div class="social-item">
+              <div class="social-icon" />
+              <div class="social-label">Facebook</div>
+            </div>
+            <div class="social-item">
+              <div class="social-icon" />
+              <div class="social-label">WhatsApp</div>
+            </div>
+          </section>
+
+          <section class="section-block">
+            <div class="section-desc" v-html="ruleDesc"></div>
+          </section>
         </div>
       </div>
-    </section>
-
-    <section class="detail-card">
-      <div class="card-title">Check-In Rules</div>
-      <!-- eslint-disable-next-line vue/no-v-html -->
-      <div class="card-content" v-html="ruleDesc" />
-    </section>
-
-    <section class="detail-card">
-      <div class="card-title">Check-In Rewards</div>
-      <div class="reward-grid">
-        <div v-for="item in signList" :key="item.day" class="reward-item">
-          <span class="reward-day">Day {{ item.day }}</span>
-          <span class="reward-amount">{{ item.amount }}</span>
-        </div>
-      </div>
-    </section>
+    </div>
   </div>
 </template>
 
 <style scoped lang="scss">
 .detail-page {
   min-height: 100vh;
-  background: #121212;
+  background: #000000;
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+  overflow: auto;
+}
+
+.detail-scale {
+  transform: scale(0.3333);
+  transform-origin: top center;
+}
+
+.detail-content {
+  position: relative;
+  width: 1125px;
+  min-height: 2304px;
+  background: #171717;
+  border-radius: 102px 102px 0 0;
+  padding-top: 132px;
   color: #ffffff;
-  padding: 28px 18px 40px;
+  box-sizing: border-box;
+}
+
+.detail-header {
+  position: absolute;
+  top: 54px;
+  left: 54px;
+  right: 54px;
+  height: 114px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-title {
+  width: 367px;
+  height: 62px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 51px;
+  line-height: 62px;
+  text-align: center;
+  margin: 0 auto;
+}
+
+.detail-back {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 114px;
+  height: 114px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.detail-back-icon {
+  width: 60px;
+  height: 60px;
+  position: relative;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.detail-body {
+  position: relative;
+  width: 1017px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 45px;
+  padding-bottom: 120px;
+  padding-top: 120px;
+}
+
+.hero-card {
+  position: relative;
+  width: 1017px;
+  height: 389px;
+  // background: #ffffff;
+  border: 2px solid #252c0e;
+  border-radius: 69px;
+  overflow: hidden;
+}
+
+.hero-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(270deg, rgba(0, 0, 0, 0) 0%, #081812 62.02%);
+}
+
+.hero-text {
+  position: absolute;
+  left: 45px;
+  top: 45px;
+  width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 2;
+}
+
+.hero-title {
+  font-family: 'Impact', sans-serif;
+  font-size: 63px;
+  line-height: 77px;
+}
+
+.hero-subtitle {
+  font-family: 'Inter', sans-serif;
+  font-size: 39px;
+  font-weight: 600;
+  line-height: 47px;
+}
+
+.hero-pill {
+  position: absolute;
+  left: 45px;
+  bottom: 38px;
+  width: 444px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 30px;
+  background: rgba(0, 255, 191, 0.1);
+  border: 2px solid rgba(0, 255, 191, 0.38);
+  border-radius: 39px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  font-size: 33px;
+  color: #00ff91;
+  z-index: 2;
+}
+
+.hero-visual {
+  position: absolute;
+  right: 40px;
+  top: 20px;
+  width: 491px;
+  height: 350px;
+}
+
+// .hero-glow {
+//   position: absolute;
+//   width: 366px;
+//   height: 366px;
+//   left: 60px;
+//   top: 0;
+//   background: #ffc800;
+//   filter: blur(150px);
+//   opacity: 0.6;
+// }
+
+.hero-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 32px;
+}
+
+.social-row {
+  width: 1017px;
+  height: 212px;
+  display: flex;
+  gap: 60px;
+  justify-content: center;
+  align-items: center;
+}
+
+.social-item {
+  width: 165px;
+  height: 212px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 15px;
+}
+
+.social-icon {
+  width: 150px;
+  height: 150px;
+  border-radius: 45px;
+  background: #1d1d1d;
+}
+
+.social-label {
+  font-family: 'Inter', sans-serif;
+  font-size: 39px;
+  color: #ffffff;
+}
+
+.section-block {
+  width: 1017px;
   display: flex;
   flex-direction: column;
   gap: 18px;
 }
 
-.detail-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.section-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 48px;
+  line-height: 58px;
 }
 
-.back-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: rgba(255, 255, 255, 0.08);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.section-desc {
+  font-family: 'Inter', sans-serif;
+  font-size: 39px;
+  line-height: 47px;
+  color: rgba(255, 255, 255, 0.6);
 }
 
-.back-icon {
-  width: 16px;
-  height: 16px;
-  position: relative;
+.rule-desc :deep(p) {
+  margin: 0 0 12px;
 }
 
-.back-icon::before,
-.back-icon::after {
-  content: '';
-  position: absolute;
-  width: 2px;
-  border-radius: 90px;
-  background: #ffffff;
-  left: 50%;
-  top: 50%;
+.rule-desc :deep(p:last-child) {
+  margin-bottom: 0;
 }
 
-.back-icon::before {
-  height: 10px;
-  transform: translate(-180%, -10%) rotate(-50deg);
-}
-
-.back-icon::after {
-  height: 18px;
-  transform: translate(-20%, -50%) rotate(30deg);
-}
-
-.header-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.header-label {
-  margin: 0;
-  font-size: 11px;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-}
-
-.header-title {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-}
-
-.hero-card {
-  background: #ffffff;
-  color: #202020;
-  border-radius: 26px;
-  padding: 16px;
-  display: grid;
-  gap: 14px;
-}
-
-.hero-media {
-  width: 100%;
-  height: 170px;
-  border-radius: 18px;
+.detail-table {
+  width: 1017px;
+  border-radius: 36px;
   overflow: hidden;
-  background: linear-gradient(135deg, #ffb9b7 0%, #ffd5d1 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  border: 2px solid #454545;
 }
 
-.hero-image {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.hero-placeholder {
-  font-family: 'AaHouDiHei', 'Inter', sans-serif;
-  font-size: 22px;
-  color: #b24747;
-  letter-spacing: 1px;
-}
-
-.hero-body {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.hero-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 700;
-}
-
-.hero-desc {
-  margin: 0;
-  font-size: 12px;
-  line-height: 1.6;
-  color: #666666;
-}
-
-.hero-meta {
+.table-head {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  margin-top: 6px;
+  grid-template-columns: repeat(3, 1fr);
+  background: linear-gradient(180deg, #292929 0%, #222222 100%);
+  border-bottom: 1px solid #454545;
+  padding: 30px 0;
+  text-align: center;
+  font-family: 'PingFang SC', sans-serif;
+  font-size: 33px;
+  color: #dcc277;
 }
 
-.meta-item {
-  background: #f8f1f1;
-  border-radius: 12px;
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.meta-label {
-  font-size: 10px;
-  color: #b26a6a;
-}
-
-.meta-value {
-  font-size: 12px;
-  font-weight: 600;
-  color: #3a1f1f;
-}
-
-.detail-card {
-  background: rgba(255, 255, 255, 0.95);
-  color: #222222;
-  border-radius: 22px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.card-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #b24747;
-}
-
-.card-content {
-  font-size: 12px;
-  line-height: 1.7;
-  color: #444444;
-}
-
-.card-content :deep(p) {
-  margin: 0 0 8px;
-}
-
-.card-content :deep(ul),
-.card-content :deep(ol) {
-  margin: 0 0 8px;
-  padding-left: 16px;
-}
-
-.reward-grid {
+.table-body {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  background: linear-gradient(180deg, #292929 0%, #222222 100%);
+  padding: 36px 0;
+  text-align: center;
+  font-family: 'Inter', sans-serif;
+  font-size: 36px;
+  color: #ffffff;
+  border-top: 1px solid #454545;
 }
 
-.reward-item {
-  background: #ffecec;
-  border-radius: 14px;
-  padding: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+.table-body > div {
+  padding: 0 16px;
+  border-right: 1px solid #454545;
 }
 
-.reward-day {
-  font-size: 12px;
-  color: #c14b55;
-  font-weight: 600;
-}
-
-.reward-amount {
-  font-size: 14px;
-  font-weight: 700;
-  color: #c14b55;
+.table-body > div:last-child {
+  border-right: none;
 }
 </style>
