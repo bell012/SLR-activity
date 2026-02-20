@@ -54,7 +54,7 @@ const bottomTitle = computed(() => {
       </button>
 
       <div class="popup-content">
-        <h2 class="title">CDaily Check-in Task</h2>
+        <h2 class="title">Daily Check-in Task</h2>
         <CheckInConditionsPanel
           v-if="item"
           :is-show-day="false"
@@ -107,7 +107,7 @@ const bottomTitle = computed(() => {
 
   .title {
     font-size: 22px;
-    font-weight: 700;
+    font-weight: 800;
     color: #f10e3d;
     text-align: center;
   }

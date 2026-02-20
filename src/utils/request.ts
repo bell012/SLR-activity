@@ -18,7 +18,7 @@ const service: AxiosInstance = axios.create({
     languageCode: 'eng',
     bundleId: '1.0.0',
     Authorization: 'ea9025b925e01580da2eb0f0b0cf7d03',
-    'X-Auth-Token': '2dbb5871-3bf8-4d27-8ef5-27ac92f9c475'
+    'X-Auth-Token': '8139f638-5ec0-4bcf-be71-88e763c76771'
   }
 })
 

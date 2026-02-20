@@ -1,6 +1,6 @@
 <script setup lang="ts">
+import { useAppStore } from '@/store/modules/app'
 import { computed } from 'vue'
-
 const props = defineProps<{
   imageUrl?: string
   buttonText?: string
@@ -11,6 +11,17 @@ const props = defineProps<{
 const emit = defineEmits<{
   action: []
 }>()
+const appStore = useAppStore()
+const imageUrl = computed(() => buildOssUrl(props.imageUrl))
+
+const buildOssUrl = (value?: string): string => {
+  if (!value) return ''
+  if (value.startsWith('http') || value.startsWith('data:')) return value
+  const base = appStore.ossDomain?.replace(/\/$/, '') || ''
+  if (!base) return value
+  const path = value.startsWith('/') ? value : `/${value}`
+  return `${base}${path}`
+}
 
 const buttonStyle = computed(() => {
   if (!props.buttonBg) return {}

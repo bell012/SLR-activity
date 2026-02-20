@@ -1,6 +1,6 @@
 <script setup lang="ts">
-/* eslint-disable vue/no-v-html */
-import { ticketApi } from '@/api'
+import { checkinApi, ticketApi } from '@/api'
+import type { OnlineListItem } from '@/api/checkin'
 import backIcon from '@/assets/png/checkin/back-icon.png'
 import { useAppStore } from '@/store/modules/app'
 import { showToast } from 'vant'
@@ -11,6 +11,7 @@ const route = useRoute()
 const appStore = useAppStore()
 const activityId = computed(() => Number(route.query.activityId) || 0)
 const activityDetail = ref<any | null>(null)
+const communityList = ref<OnlineListItem[]>([])
 
 const buildOssUrl = (value?: string) => {
   if (!value) return ''
@@ -47,8 +48,27 @@ const fetchActivityDetail = async () => {
     console.error('活动详情失败:', error)
   }
 }
+const onlineList = async () => {
+  if (!activityId.value) return
+  try {
+    const response = await checkinApi.onlineList({})
+    const list = Array.isArray(response.result?.community) ? response.result.community : []
+    communityList.value = list.slice().sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+  } catch (error) {
+    // showToast({ message: '活动详情获取失败', position: 'top' })
+    console.error('活动详情失败:', error)
+  }
+}
 
-onMounted(fetchActivityDetail)
+const handleSocialClick = (item: OnlineListItem) => {
+  if (!item.url) return
+  window.open(item.url, '_blank', 'noopener,noreferrer')
+}
+
+onMounted(async () => {
+  fetchActivityDetail()
+  onlineList()
+})
 </script>
 
 <template>
@@ -82,17 +102,23 @@ onMounted(fetchActivityDetail)
           </section>
 
           <section class="social-row">
-            <div class="social-item">
-              <div class="social-icon" />
-              <div class="social-label">Telegram</div>
-            </div>
-            <div class="social-item">
-              <div class="social-icon" />
-              <div class="social-label">Facebook</div>
-            </div>
-            <div class="social-item">
-              <div class="social-icon" />
-              <div class="social-label">WhatsApp</div>
+            <div
+              v-for="item in communityList"
+              :key="item.rowId"
+              class="social-item"
+              role="button"
+              tabindex="0"
+              @click="handleSocialClick(item)"
+              @keydown.enter.prevent="handleSocialClick(item)"
+              @keydown.space.prevent="handleSocialClick(item)"
+            >
+              <img
+                class="social-icon"
+                :src="buildOssUrl(item.imageUrl)"
+                :alt="item.name"
+                loading="lazy"
+              />
+              <div class="social-label">{{ item.name }}</div>
             </div>
           </section>
 
@@ -280,8 +306,17 @@ onMounted(fetchActivityDetail)
   height: 212px;
   display: flex;
   gap: 60px;
-  justify-content: center;
   align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 24px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.social-row::-webkit-scrollbar {
+  display: none;
 }
 
 .social-item {
@@ -291,6 +326,9 @@ onMounted(fetchActivityDetail)
   flex-direction: column;
   align-items: center;
   gap: 15px;
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  cursor: pointer;
 }
 
 .social-icon {
@@ -298,6 +336,8 @@ onMounted(fetchActivityDetail)
   height: 150px;
   border-radius: 45px;
   background: #1d1d1d;
+  object-fit: contain;
+  display: block;
 }
 
 .social-label {

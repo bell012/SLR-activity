@@ -27,6 +27,14 @@ const routes: Array<RouteRecordRaw> = [
     }
   },
   {
+    path: '/check-in/temp-list',
+    name: 'CheckInTempList',
+    component: () => import('@/views/checkin/CheckInTempList.vue'),
+    meta: {
+      title: '临时活动列表'
+    }
+  },
+  {
     path: '/check-in/detail',
     name: 'CheckInDetail',
     component: () => import('@/views/checkin/CheckInDetail.vue'),

@@ -7,8 +7,29 @@ export interface ApiResponse<T> {
   result: T
 }
 
+// 分享 / 在线客服配置
+export interface OnlineListItem {
+  createTime: number
+  imageUrl?: string
+  name: string
+  operator: string
+  remark?: string
+  rowId: number
+  site: string
+  sort?: number
+  status: number
+  type: number
+  subType?: number
+  updateTime: number
+  url?: string
+}
+
+export interface OnlineListResult {
+  community: OnlineListItem[]
+}
+// 获取服务器配置
 export interface SyDlicghResult {
-  baseSiteConfig: BaseSiteConfigResult[]
+  baseSiteConfig: BaseSiteConfigResult
 }
 export interface BaseSiteConfigResult {
   ossDomain?: string
@@ -179,7 +200,7 @@ export const mbSign = (params: { activityId: number; verifyCode: string }) => {
     params
   )
 }
-
+// 获取服务器数据配置
 export const syDlicgh = (params: {}) => {
   return request.post<ApiResponse<SyDlicghResult>, ApiResponse<SyDlicghResult>>(
     '/sy/dlicgh',
@@ -187,8 +208,25 @@ export const syDlicgh = (params: {}) => {
   )
 }
 
+// /online/list 接口是获取客服的页面数据配置
+// {
+// type: 类型 1-在线客服，2-外部客服，3-官方社群，4-模块说明（用于官方社群说明）
+// subType:当type是 1 的时候，  1-自有，2-三方 （如果是自有就走我们的逻辑，三方就内嵌打开链接）
+// name：
+// remark：
+// url： 链接url（如果是三方客服就直接内嵌打开）
+// imageUrl：图片
+// }
+export const onlineList = (params: {}) => {
+  return request.post<ApiResponse<OnlineListResult>, ApiResponse<OnlineListResult>>(
+    '/online/list',
+    params
+  )
+}
+
 export default {
   receiveReward,
   mbSign,
-  syDlicgh
+  syDlicgh,
+  onlineList
 }

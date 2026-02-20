@@ -23,7 +23,7 @@
           进入票卷页面
         </van-button>
         <van-button type="warning" block :loading="loginLoading" @click="handleCheckIn">
-          进入签到页面
+          进入活动列表页面
         </van-button>
 
         <van-button type="primary" block :loading="ticketLoading" @click="handleTicketRequest">
@@ -57,7 +57,7 @@ const handleBtn = () => {
 }
 
 const handleCheckIn = () => {
-  window.location.href = '/check-in'
+  router.push({ name: 'CheckInTempList' })
 }
 // GET 请求示例
 const handleGetRequest = async () => {

@@ -116,7 +116,10 @@ const conditionRelation = computed(() => activityDetail.value?.config?.PHP?.cond
 const styleType = computed(() => Number(activityDetail.value?.config?.PHP?.styleType ?? 1))
 const isCustomStyle = computed(() => styleType.value === 2)
 const customChestImage = computed(
-  () => resolveImage(activityDetail.value?.preImage) || activityDetail.value?.preImage || ''
+  () =>
+    resolveImage(activityDetail.value?.config?.PHP?.stylePicInfo) ||
+    activityDetail.value?.config?.PHP?.stylePicInfo ||
+    ''
 )
 const customButtonBg = computed(() =>
   customButtonState.value.disabled ? checkinBtnDisabled : checkinBtnActive
@@ -154,8 +157,18 @@ const {
   onPointerCancel
 } = slider
 
-// TODO：后续url取值，，暂时固定
-const activityId = computed(() => Number(route.query.activityId) || 100044)
+const resolveQueryNumber = (value: unknown, fallback: number) => {
+  const numeric = Number(value)
+  return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback
+}
+
+const activityId = computed(() =>
+  resolveQueryNumber(route.query.activityId ?? route.query.rowId, 0)
+)
+const memberId = computed(() => {
+  const raw = String(route.query.memberId ?? '').trim()
+  return raw || '0'
+})
 
 const signInfo = ref<MbSignResult | null>(null)
 const rewardInfo = ref<ReceiveRewardResult | null>(null)
@@ -164,6 +177,7 @@ const showVerifyPopup = ref(false)
 const showConditionsPopup = ref(false)
 const conditionsItem = ref<BonusItem | null>(null)
 const smallPopupVisible = ref(false)
+const smallPopupAmount = ref<string | number>('0.00')
 const bigPopupVisible = ref(false)
 const rewardsList = ref([
   {
@@ -330,6 +344,14 @@ const handleBonusItemClick = (item: BonusItem) => {
   showConditionsPopup.value = true
 }
 
+const showSmallPopupByReward = (result: ReceiveRewardResult | null | undefined) => {
+  const amount = Number((result as any)?.amount)
+  const bizSuccess = (result as any)?.success !== false
+  if (!Number.isFinite(amount) || amount <= 0 || !bizSuccess) return
+  smallPopupAmount.value = amount.toFixed(2)
+  smallPopupVisible.value = true
+}
+
 const customButtonState = computed(() => {
   const current = currentCard.value
   if (!current) {
@@ -380,9 +402,6 @@ const handleCenterClick = async () => {
     }
     return
   }
-  if (!hasLimit) {
-    cardDeckRef.value?.playFlip()
-  }
   if (hasLimit && !isMet) {
     cardDeckRef.value?.playFlip()
     return
@@ -391,7 +410,7 @@ const handleCenterClick = async () => {
   if (needVerify.value) {
     // ToDo：获取会员信息   // 获取手机号
     try {
-      const response = await smsApi.selectMember({ memberId: '1000011590' })
+      const response = await smsApi.selectMember({ memberId: memberId.value })
 
       console.log('----selectMember----:', response)
       // 1) 接口失败：直接提示并结束
@@ -426,6 +445,12 @@ const handleCenterClick = async () => {
     }
   }
   const result = await getReceiveReward()
+  if (!hasLimit) {
+    if (result === 'success') {
+      cardDeckRef.value?.playFlip()
+    }
+    return
+  }
   if (result === 'success' || result === 'already' || result === 'unmet') {
     cardDeckRef.value?.playFlip()
   }
@@ -463,6 +488,10 @@ const getReceiveReward = async (): Promise<ReceiveStatus> => {
     if (isSuccessCode) {
       rewardInfo.value = response.result
       markCurrentReceived()
+      // 如果是金额奖励
+      showSmallPopupByReward(response.result)
+      // TODO：若是抽奖券
+
       showToast({
         message: message || '操作成功',
         position: 'top'
@@ -494,7 +523,7 @@ const handleVerifySubmit = async () => {
 
   // 领取奖励
   const result = await getReceiveReward()
-  if (result === 'success' || result === 'already') {
+  if (result === 'success') {
     cardDeckRef.value?.playFlip()
   }
 }
@@ -776,7 +805,7 @@ onUnmounted(() => {
       <PopupSmall
         :visible="smallPopupVisible"
         subtitle="You've Earned Bonus"
-        amount="100.00"
+        :amount="smallPopupAmount"
         button-text="NEXT ROUND"
         @close="smallPopupVisible = false"
         @action="smallPopupVisible = false"
