@@ -2,6 +2,7 @@
 import { checkinApi, smsApi, ticketApi } from '@/api'
 import type { MbSignResult, ReceiveRewardResult } from '@/api/checkin'
 
+import { getTicketRewardMeta, type PopupRewardItem } from '@/constants/ticket'
 import { useAppStore } from '@/store/modules/app'
 import { showToast } from 'vant'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
@@ -139,6 +140,27 @@ type BonusItem = {
   isReceived?: boolean | null
 }
 
+type PopupTicketPayload = {
+  type?: number | string | null
+  luckyRedEnvelopeConfig?: Array<{ maxAmount?: number; minAmount?: number; probability?: number }>
+  goldenEggConfig?: Array<{ amount?: number; probability?: number; type?: number | string | null }>
+  wheelConfig?: Array<{
+    amount?: number
+    probability?: number
+    rewardType?: number | string | null
+  }>
+
+  languageInfo?: Array<{ languageCode?: string; name?: string; description?: string }>
+  triggerConfig?: Array<{ quantity?: number | string | null }>
+  quantity?: number | string | null
+}
+
+type PopupRewardPayloadBase = {
+  amount?: number | string | null
+  success?: boolean | null
+  ticket?: PopupTicketPayload | null
+}
+
 const bonusList = ref<BonusItem[]>([{ day: '', amount: '' }])
 const isLoading = ref(true)
 
@@ -179,32 +201,8 @@ const conditionsItem = ref<BonusItem | null>(null)
 const smallPopupVisible = ref(false)
 const smallPopupAmount = ref<string | number>('0.00')
 const bigPopupVisible = ref(false)
-const rewardsList = ref([
-  {
-    icon: '/src/static/ticket/card_jindan.png',
-    description: 'Register and get ₱3-₱888 bonus!',
-    quantity: 1,
-    bgColor: '#FEE554'
-  },
-  {
-    icon: '/src/static/ticket/card_zhuanpan.png',
-    description: 'Register and get ₱3-₱888 bonus!',
-    quantity: 10,
-    bgColor: '#FA9CFF'
-  },
-  {
-    icon: '/src/static/ticket/card_hongbao.png',
-    description: 'Register and get ₱3-₱888 bonus!',
-    quantity: 5,
-    bgColor: '#fba1a4'
-  },
-  {
-    icon: '/src/static/ticket/card_xianjin.png',
-    description: 'Register and get ₱3-₱888 bonus!',
-    quantity: 3,
-    bgColor: '#9affb1'
-  }
-])
+const bigPopupAmount = ref<string | number>('')
+const rewardsList = ref<PopupRewardItem[]>([])
 // TODO： 校验验证码接口，暂时固定
 const verifyCodeInput = ref('123456')
 const canResend = ref(false)
@@ -260,11 +258,6 @@ const applySignProgress = (signResult: MbSignResult | null) => {
       historyMap.set(dayValue, item)
     }
   })
-  const latest = historyList.length > 0 ? historyList[historyList.length - 1] : null
-  const depositProgress = normalizeProgressValue(
-    latest?.rechargeAmount ?? signResult.rechargeAmount
-  )
-  const betProgress = normalizeProgressValue(latest?.betAmount ?? signResult.betAmount)
   const todayReceived = Boolean(signResult.todayIsSign)
 
   bonusList.value = bonusList.value.map((item, index) => {
@@ -273,13 +266,11 @@ const applySignProgress = (signResult: MbSignResult | null) => {
     const history = historyMap.get(day)
     const receivedAmount = history?.todaySignAmount ?? history?.rewardAmount ?? history?.amount
     const isReceived = Boolean(history) || (index === targetIndex && todayReceived)
-    if (index !== targetIndex) {
-      return {
-        ...item,
-        isReceived,
-        receivedAmount
-      }
-    }
+    const depositFallback = index === targetIndex ? signResult.rechargeAmount : item.depositProgress
+    const betFallback = index === targetIndex ? signResult.betAmount : item.betProgress
+    const depositProgress = normalizeProgressValue(history?.rechargeAmount ?? depositFallback)
+    const betProgress = normalizeProgressValue(history?.betAmount ?? betFallback)
+
     return {
       ...item,
       isReceived,
@@ -344,12 +335,68 @@ const handleBonusItemClick = (item: BonusItem) => {
   showConditionsPopup.value = true
 }
 
-const showSmallPopupByReward = (result: ReceiveRewardResult | null | undefined) => {
-  const amount = Number((result as any)?.amount)
-  const bizSuccess = (result as any)?.success !== false
+const showSmallPopupByReward = <T extends PopupRewardPayloadBase>(result: T | null | undefined) => {
+  const amount = Number(result?.amount)
+  const bizSuccess = result?.success !== false
   if (!Number.isFinite(amount) || amount <= 0 || !bizSuccess) return
   smallPopupAmount.value = amount.toFixed(2)
+  bigPopupVisible.value = false
   smallPopupVisible.value = true
+}
+
+const showBigPopupByTicket = <T extends PopupRewardPayloadBase>(result: T | null | undefined) => {
+  const ticket = result?.ticket
+  const meta = getTicketRewardMeta(ticket?.type)
+  if (!meta) return false
+
+  const quantityValue = Number(ticket?.triggerConfig?.[0]?.quantity ?? ticket?.quantity ?? 1)
+  const quantity = Number.isFinite(quantityValue) && quantityValue > 0 ? quantityValue : 1
+  const description = pickLocalizedText(ticket?.languageInfo, meta.fallbackDescription)
+  let subtitle = ''
+  const ticketType = Number(ticket?.type)
+  if (ticketType === 2) {
+    const stitle = description
+    const minAmount = ticket?.luckyRedEnvelopeConfig?.[0]?.minAmount?.toString() ?? ''
+    const maxAmount = ticket?.luckyRedEnvelopeConfig?.[0]?.maxAmount?.toString() ?? ''
+    subtitle = stitle + symbol.value + minAmount + ' ~ ' + maxAmount
+  } else if (ticketType === 3) {
+    const amounts = (ticket?.goldenEggConfig ?? [])
+      .map((item) => Number(item?.amount))
+      .filter((value): value is number => Number.isFinite(value))
+    if (amounts.length > 0) {
+      const stitle = description
+
+      const minAmount = Math.min(...amounts)
+      const maxAmount = Math.max(...amounts)
+      subtitle = stitle + symbol.value + `${minAmount} ~ ${maxAmount}`
+    }
+  } else if (ticketType === 4) {
+    const amounts = (ticket?.wheelConfig ?? [])
+      .map((item) => Number(item?.amount))
+      .filter((value): value is number => Number.isFinite(value))
+    if (amounts.length > 0) {
+      const stitle = description
+      const minAmount = Math.min(...amounts)
+      const maxAmount = Math.max(...amounts)
+      subtitle = stitle + symbol.value + `${minAmount} ~ ${maxAmount}`
+    }
+  }
+
+  rewardsList.value = [
+    {
+      icon: meta.icon,
+      description: subtitle,
+      quantity,
+      bgColor: meta.bgColor
+    }
+  ]
+
+  const amount = Number(result?.amount)
+  bigPopupAmount.value = Number.isFinite(amount) && amount > 0 ? amount.toFixed(2) : ''
+
+  smallPopupVisible.value = false
+  bigPopupVisible.value = true
+  return true
 }
 
 const customButtonState = computed(() => {
@@ -488,9 +535,16 @@ const getReceiveReward = async (): Promise<ReceiveStatus> => {
     if (isSuccessCode) {
       rewardInfo.value = response.result
       markCurrentReceived()
-      // 如果是金额奖励
-      showSmallPopupByReward(response.result)
-      // TODO：若是抽奖券
+      const hasTicket = Boolean((response.result as any)?.ticket)
+      if (hasTicket) {
+        const shown = showBigPopupByTicket(response.result)
+        if (!shown) {
+          showSmallPopupByReward(response.result)
+        }
+      } else {
+        // 如果是金额奖励
+        showSmallPopupByReward(response.result)
+      }
 
       showToast({
         message: message || '操作成功',
@@ -813,7 +867,8 @@ onUnmounted(() => {
 
       <PopupBig
         :visible="bigPopupVisible"
-        subtitle="You've Earned Bonus"
+        subtitle="You’ve Earned a Coupon"
+        :amount="bigPopupAmount"
         :rewards="rewardsList"
         button-text="USE NOW"
         @close="bigPopupVisible = false"

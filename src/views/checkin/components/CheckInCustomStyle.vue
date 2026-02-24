@@ -36,7 +36,7 @@ const handleClick = () => {
 
 <template>
   <div class="custom-style">
-    <img v-if="imageUrl" :src="imageUrl" alt="treasure" class="custom-image" />
+    <img :src="imageUrl" alt="treasure" class="custom-image" />
     <button
       type="button"
       class="custom-button"
@@ -64,7 +64,8 @@ const handleClick = () => {
 .custom-image {
   width: 220px;
   max-width: 80%;
-  height: auto;
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
   display: block;
 }
 

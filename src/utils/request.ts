@@ -17,8 +17,8 @@ const service: AxiosInstance = axios.create({
     channelId: '1',
     languageCode: 'eng',
     bundleId: '1.0.0',
-    Authorization: 'ea9025b925e01580da2eb0f0b0cf7d03',
-    'X-Auth-Token': '8139f638-5ec0-4bcf-be71-88e763c76771'
+    Authorization: 'd41d8cd98f00b204e9800998ecf8427e',
+    'X-Auth-Token': '151e45d3-3bcb-4587-a857-261bdaf0377f'
   }
 })
 

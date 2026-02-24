@@ -3,6 +3,7 @@ import iconCashEvent from '@/assets/common/icon-cash-event.svg'
 import iconGoldenEgg from '@/assets/common/icon-golden-egg.svg'
 import iconLuckyWheel from '@/assets/common/icon-lucky-wheel.svg'
 import iconRedPacket from '@/assets/common/icon-red-packet.svg'
+import { TicketType } from '@/constants/ticket'
 import checkinTicketDefault from '@/assets/svg/checkin/checkin-ticket-default.svg'
 
 type BonusItem = {
@@ -37,10 +38,10 @@ const hasRequirements = (item: BonusItem) => {
 
 const resolveTicketIcon = (item: BonusItem) => {
   const type = item?.ticketType == null ? null : Number(item.ticketType)
-  if (type === 3) return iconGoldenEgg
-  if (type === 1) return iconCashEvent
-  if (type === 2) return iconRedPacket
-  if (type === 4) return iconLuckyWheel
+  if (type === TicketType.GoldenEgg) return iconGoldenEgg
+  if (type === TicketType.CashVoucher) return iconCashEvent
+  if (type === TicketType.LuckyRedEnvelope) return iconRedPacket
+  if (type === TicketType.LuckyWheel) return iconLuckyWheel
   return checkinTicketDefault
 }
 

@@ -6,7 +6,11 @@
       <div class="popup-content">
         <h2 class="title">Congratulations!</h2>
         <p class="subtitle">{{ props.subtitle }}</p>
-        <div class="rewards-list">
+        <div v-if="Number(props.amount) > 0" class="amount">₱{{ props.amount }}</div>
+        <div
+          class="rewards-list"
+          :class="{ 'rewards-list--with-amount': Number(props.amount) > 0 }"
+        >
           <div
             v-for="(item, index) in props.rewards"
             :key="index"
@@ -49,6 +53,7 @@ interface RewardItem {
 interface Props {
   visible?: boolean
   subtitle?: string
+  amount?: string | number
   rewards?: RewardItem[]
   buttonText?: string
 }
@@ -56,6 +61,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   visible: false,
   subtitle: "You've Earned Bonus",
+  amount: '',
   buttonText: 'USE NOW',
   rewards: () => [
     {
@@ -157,6 +163,14 @@ const handleAction = () => {
       text-align: center;
     }
 
+    .amount {
+      font-size: 38px;
+      font-weight: 700;
+      color: #f10e3d;
+      margin: 0px 0 0px 0;
+      text-align: center;
+    }
+
     .rewards-list {
       width: 100%;
       height: 190px;
@@ -204,6 +218,10 @@ const handleAction = () => {
           }
         }
       }
+    }
+
+    .rewards-list.rewards-list--with-amount {
+      height: 144px;
     }
 
     .action-btn {
