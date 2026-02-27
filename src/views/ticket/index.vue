@@ -110,7 +110,7 @@ const handleIconClick = (index: number) => {
   margin-top: 44px;
   border-radius: 34px 34px 0 0;
   background: url('@/static/ticket/BG.png') no-repeat;
-  background-size: 100% 100%;
+  background-size: contain;
   overflow: hidden;
   isolation: isolate;
   padding: 15px;
