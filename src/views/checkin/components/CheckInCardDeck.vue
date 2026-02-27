@@ -108,6 +108,9 @@ const lottieStyle = computed(() => {
 
 // 当前卡是否已领取
 const isCurrentReceived = computed(() => Boolean(props.current?.isReceived))
+const centerAnimationImage = computed(() =>
+  isCurrentReceived.value ? checkinVectorDivider : resolveDayImage(props.current.day)
+)
 
 // 把各种金额/进度值转成数字，非法/<=0 则置 0
 const normalizeAmount = (value: number | string | null | undefined) => {
@@ -126,12 +129,12 @@ const hasRequirements = computed(() => depositTarget.value > 0 || betTarget.valu
 
 // 条件面板展示：有条件，并且（翻牌中 / 翻牌后 / 已领取）
 const showRequirementsPanel = computed(
-  () => hasRequirements.value && (isFlipped.value || isCurrentReceived.value || isFlipping.value)
+  () => hasRequirements.value && !isCurrentReceived.value && (isFlipped.value || isFlipping.value)
 )
 
-// 分割线展示：没条件，并且（已领取 或 翻牌后）
+// 分割线展示：已领取始终展示；未领取则在无条件且翻牌后展示
 const showDivider = computed(
-  () => !hasRequirements.value && (isCurrentReceived.value || isFlipped.value)
+  () => isCurrentReceived.value || (!hasRequirements.value && isFlipped.value)
 )
 const isRequirementsFlipping = computed(
   () => hasRequirements.value && isFlipping.value && !isCurrentReceived.value
@@ -278,12 +281,12 @@ const applyMiddleLayerHiddenAfterHalf = (data: any, hidden: boolean) => {
 
 // idle / flip 动画数据（替换不同 assetId）
 const getIdleAnimationData = () =>
-  buildAnimationData(cardIdleAnim, resolveDayImage(props.current.day), IDLE_DAY_ASSET_ID)
+  buildAnimationData(cardIdleAnim, centerAnimationImage.value, IDLE_DAY_ASSET_ID)
 
 const getFlipAnimationData = () =>
   applyMiddleLayerHiddenAfterHalf(
     applySignedIconLayerHidden(
-      buildAnimationData(cardFlipAnim, resolveDayImage(props.current.day), FLIP_DAY_ASSET_ID),
+      buildAnimationData(cardFlipAnim, centerAnimationImage.value, FLIP_DAY_ASSET_ID),
       hasRequirements.value
     ),
     hasRequirements.value
@@ -295,6 +298,20 @@ const onCenterClick = () => {
   if (isCurrentReceived.value && hasRequirements.value) return
   if (isCurrentReceived.value) return
   emit('centerClick')
+}
+
+const onCenterCardClick = (event: globalThis.MouseEvent) => {
+  if (isCurrentReceived.value) {
+    event.preventDefault()
+    event.stopPropagation()
+    return
+  }
+  onCenterClick()
+}
+
+const onCenterPointerGuard = (event: PointerEvent) => {
+  if (!isCurrentReceived.value) return
+  event.stopPropagation()
 }
 
 // 播 idle：仅在“未翻牌 & 未领取”时播放循环动画
@@ -390,7 +407,10 @@ defineExpose({ playFlip })
     <div
       class="card card-center"
       :style="{ backgroundImage: cardBackground }"
-      @click="onCenterClick"
+      @click="onCenterCardClick"
+      @pointerdown="onCenterPointerGuard"
+      @pointerup="onCenterPointerGuard"
+      @pointercancel="onCenterPointerGuard"
     >
       <div
         v-if="showRequirementsPanel"
@@ -402,7 +422,7 @@ defineExpose({ playFlip })
         :style="[requirementsPanelStyle, { backgroundImage: `url(${checkinDecorationBg})` }]"
       />
       <div
-        v-show="!isFlipped && !isCurrentReceived"
+        v-show="!isFlipped && (!isCurrentReceived || isFlipping)"
         ref="cardLottieEl"
         class="card-lottie"
         :style="lottieStyle"
@@ -412,7 +432,7 @@ defineExpose({ playFlip })
         :src="checkinVectorDivider"
         alt=""
         aria-hidden="true"
-        class="card-divider"
+        :class="['card-divider', { 'card-divider-mini': isCurrentReceived }]"
       />
       <CheckInConditionsPanel
         v-if="showRequirementsPanel"

@@ -55,6 +55,8 @@ watch(
   <van-popup
     :show="show"
     :overlay="true"
+    teleport="body"
+    :z-index="12000"
     overlay-class="verify-overlay"
     :close-on-click-overlay="false"
     class="verify-popup"

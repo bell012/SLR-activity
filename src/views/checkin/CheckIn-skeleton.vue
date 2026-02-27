@@ -15,7 +15,6 @@ const backgroundImage = props.background || checkinBg
 
       <div class="skeleton-header">
         <div class="skeleton-pill" />
-        <div class="skeleton-circle" />
       </div>
       <div class="skeleton-title" />
       <div class="skeleton-subtitle" />
@@ -131,8 +130,9 @@ const backgroundImage = props.background || checkinBg
 }
 
 .skeleton-card {
-  width: 100%;
+  width: 60%;
   height: 256px;
+  justify-self: center;
   border-radius: 20px;
   background: #f2f3f5;
   margin-bottom: 18px;

@@ -10,6 +10,9 @@ const router = useRouter()
 const route = useRoute()
 const appStore = useAppStore()
 const activityId = computed(() => Number(route.query.activityId) || 0)
+// 分页参数
+const size = computed(() => Number(route.query.size || 10))
+const current = computed(() => Number(route.query.current || 1))
 const activityDetail = ref<any | null>(null)
 const communityList = ref<OnlineListItem[]>([])
 
@@ -35,7 +38,7 @@ const extractActivityList = (response: any) => {
 const fetchActivityDetail = async () => {
   if (!activityId.value) return
   try {
-    const response = await ticketApi.getMbTicketList({})
+    const response = await ticketApi.getMbTicketList({ size: size.value, current: current.value })
     const list = extractActivityList(response)
     const matched = list.find((item: { rowId?: number }) => Number(item.rowId) === activityId.value)
     if (matched) {

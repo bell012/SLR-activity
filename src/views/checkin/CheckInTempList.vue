@@ -57,7 +57,7 @@ const extractActivityList = (response: any): ActivityItem[] => {
 const fetchActivityList = async () => {
   listLoading.value = true
   try {
-    const response = await ticketApi.getMbTicketList({})
+    const response = await ticketApi.getMbTicketList({ size: 100, current: 1 })
     activityList.value = extractActivityList(response)
     if (activityList.value.length === 0) {
       showToast({
@@ -98,7 +98,10 @@ const handleSelect = (item: ActivityItem) => {
     name: 'CheckIn',
     query: {
       rowId: String(rowId),
-      activityId: String(rowId),
+      size: 100, // 每页数量
+      current: 1, // 当前页码
+      languageCode: 'eng',
+      // activityId: String(rowId),
       memberId: member
     }
   })

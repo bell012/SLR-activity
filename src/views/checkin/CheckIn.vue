@@ -33,29 +33,48 @@ const router = useRouter()
 const route = useRoute()
 const appStore = useAppStore()
 
+const resolveQueryString = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return String(value[0] ?? '').trim()
+  }
+  return String(value ?? '').trim()
+}
+
+const languageCode = computed(() => {
+  const raw = resolveQueryString(
+    route.query.languageCode ?? route.query.lang ?? route.query.locale ?? ''
+  ).toLowerCase()
+  if (!raw) return 'eng'
+  if (raw === 'en') return 'eng'
+  return raw
+})
+
 const pickLocalizedText = (
-  list?: Array<{ languageCode?: string; name?: string }>,
+  list?: Array<{ languageCode?: string; name?: string; description?: string }>,
+  isName = true,
   fallback = ''
 ) => {
   if (!Array.isArray(list) || list.length === 0) return fallback
+  const prefer = languageCode.value
   const target =
-    list.find((item) => item.languageCode === 'eng' || item.languageCode === 'en') || list[0]
-  return target?.name || fallback
+    list.find((item) => {
+      const code = (item.languageCode || '').toLowerCase()
+      if (!code) return false
+      if (prefer === 'eng') return code === 'eng' || code === 'en'
+      return code === prefer
+    }) ||
+    list.find((item) => {
+      const code = (item.languageCode || '').toLowerCase()
+      return code === 'eng' || code === 'en'
+    }) ||
+    list[0]
+  return isName ? target?.name || fallback : target?.description || fallback
 }
 
 const symbol = computed(() => {
   const currency = activityCurrency.value
   return getCurrencySymbol(currency)
 })
-
-const formatDate = (value?: number) => {
-  if (!value) return ''
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: '2-digit',
-    year: 'numeric'
-  }).format(new Date(value))
-}
 
 const getCurrencySymbol = (currency?: string) => {
   const map: Record<string, string> = {
@@ -86,25 +105,6 @@ const bonusSubtitle = computed(() => {
   return Number(signType) === 0
     ? 'Consecutive check-ins earn more rewards'
     : 'Cumulative check-ins earn more rewards'
-})
-const startTagText = computed(() => {
-  const startDate = activityDetail.value?.startDate
-  const endDate = activityDetail.value?.endDate
-  const now = Date.now()
-  if (startDate && now < startDate) {
-    const startText = formatDate(startDate)
-    return startText ? `Starts On: ${startText}` : 'Starts On: --'
-  }
-  if (endDate && now <= endDate) {
-    const endText = formatDate(endDate)
-    return endText ? `Ends On: ${endText}` : 'Ends On: --'
-  }
-  if (endDate) {
-    const endText = formatDate(endDate)
-    return endText ? `Ends On: ${endText}` : 'Ends On: --'
-  }
-  const startText = formatDate(startDate)
-  return startText ? `Starts On: ${startText}` : 'Starts On: --'
 })
 const activityCurrency = computed(
   () => activityDetail.value?.config?.PHP?.currency || activityDetail.value?.currencyList?.[0]
@@ -184,9 +184,10 @@ const resolveQueryNumber = (value: unknown, fallback: number) => {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : fallback
 }
 
-const activityId = computed(() =>
-  resolveQueryNumber(route.query.activityId ?? route.query.rowId, 0)
-)
+const activityId = computed(() => resolveQueryNumber(route.query.rowId, 0))
+// 分页参数
+const size = computed(() => resolveQueryNumber(route.query.size, 10))
+const current = computed(() => resolveQueryNumber(route.query.current, 1))
 const memberId = computed(() => {
   const raw = String(route.query.memberId ?? '').trim()
   return raw || '0'
@@ -203,8 +204,60 @@ const smallPopupAmount = ref<string | number>('0.00')
 const bigPopupVisible = ref(false)
 const bigPopupAmount = ref<string | number>('')
 const rewardsList = ref<PopupRewardItem[]>([])
+
+const hasCustomPopupVisible = computed(
+  () => showConditionsPopup.value || smallPopupVisible.value || bigPopupVisible.value
+)
+
+let lockedScrollY = 0
+let savedHtmlOverflow = ''
+let savedBodyStyle: {
+  position: string
+  top: string
+  left: string
+  right: string
+  width: string
+  overflow: string
+} | null = null
+
+const lockPageScroll = () => {
+  if (savedBodyStyle) return
+  const bodyStyle = document.body.style
+  savedBodyStyle = {
+    position: bodyStyle.position,
+    top: bodyStyle.top,
+    left: bodyStyle.left,
+    right: bodyStyle.right,
+    width: bodyStyle.width,
+    overflow: bodyStyle.overflow
+  }
+  savedHtmlOverflow = document.documentElement.style.overflow
+  lockedScrollY = window.scrollY || window.pageYOffset || 0
+
+  bodyStyle.position = 'fixed'
+  bodyStyle.top = `-${lockedScrollY}px`
+  bodyStyle.left = '0'
+  bodyStyle.right = '0'
+  bodyStyle.width = '100%'
+  bodyStyle.overflow = 'hidden'
+  document.documentElement.style.overflow = 'hidden'
+}
+
+const unlockPageScroll = () => {
+  if (!savedBodyStyle) return
+  const bodyStyle = document.body.style
+  bodyStyle.position = savedBodyStyle.position
+  bodyStyle.top = savedBodyStyle.top
+  bodyStyle.left = savedBodyStyle.left
+  bodyStyle.right = savedBodyStyle.right
+  bodyStyle.width = savedBodyStyle.width
+  bodyStyle.overflow = savedBodyStyle.overflow
+  document.documentElement.style.overflow = savedHtmlOverflow
+  savedBodyStyle = null
+  window.scrollTo(0, lockedScrollY)
+}
 // TODO： 校验验证码接口，暂时固定
-const verifyCodeInput = ref('123456')
+const verifyCodeInput = ref('')
 const canResend = ref(false)
 const resendSeconds = ref(0)
 const resendTimer = ref<number | null>(null)
@@ -321,13 +374,8 @@ const markCurrentReceived = () => {
 const goToDetail = () => {
   router.push({
     name: 'CheckInDetail',
-    query: { activityId: activityId.value }
+    query: { activityId: activityId.value, current: current.value, size: size.value }
   })
-}
-
-const showTestPopups = () => {
-  smallPopupVisible.value = true
-  bigPopupVisible.value = true
 }
 
 const handleBonusItemClick = (item: BonusItem) => {
@@ -351,41 +399,41 @@ const showBigPopupByTicket = <T extends PopupRewardPayloadBase>(result: T | null
 
   const quantityValue = Number(ticket?.triggerConfig?.[0]?.quantity ?? ticket?.quantity ?? 1)
   const quantity = Number.isFinite(quantityValue) && quantityValue > 0 ? quantityValue : 1
-  const description = pickLocalizedText(ticket?.languageInfo, meta.fallbackDescription)
-  let subtitle = ''
-  const ticketType = Number(ticket?.type)
-  if (ticketType === 2) {
-    const stitle = description
-    const minAmount = ticket?.luckyRedEnvelopeConfig?.[0]?.minAmount?.toString() ?? ''
-    const maxAmount = ticket?.luckyRedEnvelopeConfig?.[0]?.maxAmount?.toString() ?? ''
-    subtitle = stitle + symbol.value + minAmount + ' ~ ' + maxAmount
-  } else if (ticketType === 3) {
-    const amounts = (ticket?.goldenEggConfig ?? [])
-      .map((item) => Number(item?.amount))
-      .filter((value): value is number => Number.isFinite(value))
-    if (amounts.length > 0) {
-      const stitle = description
+  const description = pickLocalizedText(ticket?.languageInfo, false, meta.fallbackDescription)
+  // let subtitle = ''
+  // const ticketType = Number(ticket?.type)
+  // if (ticketType === 2) {
+  //   const stitle = description
+  //   const minAmount = ticket?.luckyRedEnvelopeConfig?.[0]?.minAmount?.toString() ?? ''
+  //   const maxAmount = ticket?.luckyRedEnvelopeConfig?.[0]?.maxAmount?.toString() ?? ''
+  //   subtitle = stitle + symbol.value + minAmount + ' ~ ' + maxAmount
+  // } else if (ticketType === 3) {
+  //   const amounts = (ticket?.goldenEggConfig ?? [])
+  //     .map((item) => Number(item?.amount))
+  //     .filter((value): value is number => Number.isFinite(value))
+  //   if (amounts.length > 0) {
+  //     const stitle = description
 
-      const minAmount = Math.min(...amounts)
-      const maxAmount = Math.max(...amounts)
-      subtitle = stitle + symbol.value + `${minAmount} ~ ${maxAmount}`
-    }
-  } else if (ticketType === 4) {
-    const amounts = (ticket?.wheelConfig ?? [])
-      .map((item) => Number(item?.amount))
-      .filter((value): value is number => Number.isFinite(value))
-    if (amounts.length > 0) {
-      const stitle = description
-      const minAmount = Math.min(...amounts)
-      const maxAmount = Math.max(...amounts)
-      subtitle = stitle + symbol.value + `${minAmount} ~ ${maxAmount}`
-    }
-  }
+  //     const minAmount = Math.min(...amounts)
+  //     const maxAmount = Math.max(...amounts)
+  //     subtitle = stitle + symbol.value + `${minAmount} ~ ${maxAmount}`
+  //   }
+  // } else if (ticketType === 4) {
+  //   const amounts = (ticket?.wheelConfig ?? [])
+  //     .map((item) => Number(item?.amount))
+  //     .filter((value): value is number => Number.isFinite(value))
+  //   if (amounts.length > 0) {
+  //     const stitle = description
+  //     const minAmount = Math.min(...amounts)
+  //     const maxAmount = Math.max(...amounts)
+  //     subtitle = stitle + symbol.value + `${minAmount} ~ ${maxAmount}`
+  //   }
+  // }
 
   rewardsList.value = [
     {
       icon: meta.icon,
-      description: subtitle,
+      description: description,
       quantity,
       bgColor: meta.bgColor
     }
@@ -438,9 +486,6 @@ const handleCenterClick = async () => {
   const isReceived = Boolean(current.isReceived)
 
   if (isReceived) {
-    if (hasLimit) {
-      cardDeckRef.value?.playFlip()
-    }
     return
   }
   if (!isToday) {
@@ -656,6 +701,14 @@ watch(
   }
 )
 
+watch(hasCustomPopupVisible, (visible) => {
+  if (visible) {
+    lockPageScroll()
+    return
+  }
+  unlockPageScroll()
+})
+
 const extractActivityList = (response: any) => {
   if (Array.isArray(response?.result.records)) return response.result.records
   return []
@@ -671,12 +724,15 @@ const applyActivityDetail = (item: any) => {
 
 const fetchActivityDetail = async () => {
   isLoading.value = true
+  let detailLoaded = false
+  // TODO：活动详情存在于分页数据中
   try {
-    const response = await ticketApi.getMbTicketList({})
+    const response = await ticketApi.getMbTicketList({ size: size.value, current: current.value })
     const list = extractActivityList(response)
     const matched = list.find((item: { rowId?: number }) => Number(item.rowId) === activityId.value)
     if (matched) {
       applyActivityDetail(matched)
+      detailLoaded = true
       // 9、手机短信验证
       const limitList = (Array.isArray(matched.limit) ? matched.limit : []) as Array<
         number | string
@@ -699,13 +755,19 @@ const fetchActivityDetail = async () => {
     })
     console.error('活动列表失败:', error)
   } finally {
-    isLoading.value = false
+    // 如果 获取互动活动详情失败， 依旧显示骨架屏
+    isLoading.value = !detailLoaded
   }
+
+  return detailLoaded
 }
 
 onMounted(async () => {
   // huoqu 活动列表
-  await fetchActivityDetail()
+  const detailLoaded = await fetchActivityDetail()
+  if (!detailLoaded) {
+    return
+  }
 
   try {
     // 后台服务器配置：获取图片服务器地址
@@ -768,6 +830,7 @@ onUnmounted(() => {
     window.clearInterval(resendTimer.value)
     resendTimer.value = null
   }
+  unlockPageScroll()
   window.removeEventListener('scroll', handleScroll)
 })
 </script>
@@ -785,12 +848,12 @@ onUnmounted(() => {
     <div v-else class="check-in-modal">
       <div class="modal-bg" :style="{ backgroundImage: `url(${activityBackground})` }" />
 
-      <header class="modal-header">
+      <!-- <header class="modal-header">
         <div class="start-tag">{{ startTagText }}</div>
         <button class="back-btn" aria-label="Back" @click="showTestPopups">
           <span class="back-icon" />
         </button>
-      </header>
+      </header> -->
 
       <div class="title-img"><img :src="activityTitleImg" alt="activity title" /></div>
       <p class="subtitle">{{ activitySubtitle }}</p>
@@ -1025,6 +1088,13 @@ onUnmounted(() => {
   font-size: 12px;
   color: #f19791;
   z-index: 2;
+  display: -webkit-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow-wrap: anywhere;
 }
 
 .bonus-section {
