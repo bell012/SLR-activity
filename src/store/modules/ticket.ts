@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ticketApi } from '@/api'
-import type { TicketMbTicketListRes } from '@/interface/ticket_interface'
+import type { TicketMbTicketListRes, TicketProgressResponse } from '@/interface/ticket_interface'
 
 export const useTicketStore = defineStore('ticket', () => {
   // 票券列表数据
@@ -10,6 +10,8 @@ export const useTicketStore = defineStore('ticket', () => {
   const activeTicketIndex = ref(0)
   // 加载状态
   const loading = ref(false)
+  // 进度数据 Map，key 为 rowId，value 为进度数据
+  const progressDataMap = ref<Record<number, TicketProgressResponse['result']>>({})
 
   /**
    * 获取会员票券列表
@@ -82,14 +84,82 @@ export const useTicketStore = defineStore('ticket', () => {
     return componentMap[type] || 'Jindan'
   }
 
+  /**
+   * 获取票券完成进度
+   * @param rowId 票券id
+   */
+  const fetchTicketProgress = async (rowId: number) => {
+    try {
+      console.log('票券进度查询参数:', { rowId })
+      const response = await ticketApi.ticketProgress({ rowId })
+      console.log('票券进度数据:', response)
+      if (response && response.success) {
+        progressDataMap.value = {
+          ...progressDataMap.value,
+          [rowId]: response.result
+        }
+      }
+      return response
+    } catch (error) {
+      console.error(error)
+      throw error
+    }
+  }
+
+  /**
+   * 根据 rowId 获取进度数据
+   * @param rowId 票券id
+   */
+  const getProgressByRowId = (rowId: number) => {
+    return progressDataMap.value[rowId] || null
+  }
+
+  /**
+   * 计算进度百分比
+   * @param rowId 票券id
+   * @returns 进度百分比 0-100
+   */
+  const calculateProgressPercentage = (rowId: number): number => {
+    const progressData = getProgressByRowId(rowId)
+
+    // 如果没有进度数据，返回 0
+    if (!progressData) {
+      return 0
+    }
+
+    // 统计完成的项目数量
+    let completedCount = 0
+    const totalCount = 6 // 总共 6 个项目
+
+    // bindData 中的 2 个项目
+    if (progressData.bindData.bindWithdrawalAccount) completedCount++
+    if (progressData.bindData.bindWithdrawalName) completedCount++
+
+    // completeInfo 中的 3 个项目
+    if (progressData.completeInfo.completeWhatsapp) completedCount++
+    if (progressData.completeInfo.completeFacebook) completedCount++
+    if (progressData.completeInfo.completeTelegram) completedCount++
+
+    // completeVerification 中的 1 个项目
+    if (progressData.completeVerification.verifyPhone) completedCount++
+
+    // 计算百分比
+    const percentage = Math.round((completedCount / totalCount) * 100)
+    return percentage
+  }
+
   return {
     ticketList,
     activeTicketIndex,
     loading,
+    progressDataMap,
     fetchTicketList,
     setActiveTicket,
     getCurrentTicket,
     getIconByType,
-    getComponentNameByType
+    getComponentNameByType,
+    fetchTicketProgress,
+    getProgressByRowId,
+    calculateProgressPercentage
   }
 })

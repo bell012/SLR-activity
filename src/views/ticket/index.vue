@@ -177,7 +177,7 @@ const canGoNext = computed(() => {
 })
 
 // 选中上一个票券
-const handlePrev = () => {
+const handlePrev = async () => {
   if (canGoPrev.value) {
     const newIndex = ticketStore.activeTicketIndex - 1
     ticketStore.setActiveTicket(newIndex)
@@ -191,7 +191,7 @@ const handlePrev = () => {
 }
 
 // 选中下一个票券
-const handleNext = () => {
+const handleNext = async () => {
   if (canGoNext.value) {
     const newIndex = ticketStore.activeTicketIndex + 1
     ticketStore.setActiveTicket(newIndex)
@@ -205,7 +205,7 @@ const handleNext = () => {
 }
 
 // 点击图标
-const handleIconClick = (index: number) => {
+const handleIconClick = async (index: number) => {
   const actualIndex = currentPage.value * itemsPerPage + index
   ticketStore.setActiveTicket(actualIndex)
 }
@@ -234,7 +234,6 @@ onUnmounted(() => {
 <style lang="scss" scoped>
 .ticket-container {
   min-height: 100vh;
-  height: 100vh;
   background: #000;
   padding: env(safe-area-inset-top) 0 0;
   display: flex;
@@ -302,9 +301,8 @@ onUnmounted(() => {
     .icon-list {
       flex: 1;
       display: flex;
-      padding: 0;
       gap: 5px;
-      justify-content: flex-start;
+      justify-content: center;
       align-items: center;
       overflow: visible;
 

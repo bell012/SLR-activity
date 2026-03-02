@@ -1,5 +1,9 @@
 import request from '@/utils/request'
-import type { TicketMbTicketListResponse } from '@/interface/ticket_interface'
+import type {
+  TicketMbTicketListResponse,
+  TicketProgressParams,
+  TicketProgressResponse
+} from '@/interface/ticket_interface'
 
 /**
  * 会员票券查询
@@ -9,6 +13,16 @@ export const ticketMbTicketList = (params = {}): Promise<TicketMbTicketListRespo
   return request.post('/ticket/api/mbTicketList', params) as Promise<TicketMbTicketListResponse>
 }
 
+/**
+ * 会员票券完成进度查询
+ * @param params 请求参数，包含 rowId
+ * @returns Promise<TicketProgressResponse>
+ */
+export const ticketProgress = (params: TicketProgressParams): Promise<TicketProgressResponse> => {
+  return request.post('/ticket/api/progress', params) as Promise<TicketProgressResponse>
+}
+
 export default {
-  ticketMbTicketList
+  ticketMbTicketList,
+  ticketProgress
 }

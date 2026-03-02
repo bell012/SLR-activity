@@ -17,6 +17,7 @@ export interface TicketMbTicketListRes {
     languageCode: string
     name: string
   }>
+  rowId: number // 票券id
 }
 
 // 会员票券查询  响应数据
@@ -24,5 +25,32 @@ export interface TicketMbTicketListResponse {
   code: string
   message: string
   result: TicketMbTicketListRes[]
+  success: boolean
+}
+
+// 票券进度查询  请求参数
+export interface TicketProgressParams {
+  rowId: number // 票券id
+}
+
+// 票券进度查询  响应数据
+export interface TicketProgressResponse {
+  code: string
+  message: string
+  result: {
+    available: boolean //是否可用
+    bindData: {
+      bindWithdrawalAccount: boolean //是否绑定出款账号
+      bindWithdrawalName: boolean //是否绑定出款姓名
+    }
+    completeInfo: {
+      completeWhatsapp: boolean //是否完善Whatsapp
+      completeFacebook: boolean //是否完善Facebook
+      completeTelegram: boolean //是否完善Telegram
+    }
+    completeVerification: {
+      verifyPhone: boolean //是否验证手机号码
+    }
+  }
   success: boolean
 }
