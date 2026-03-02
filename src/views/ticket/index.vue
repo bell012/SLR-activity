@@ -124,32 +124,41 @@ const visibleIcons = computed(() => {
   return iconList.value.slice(start, end)
 })
 
-// 总页数
-const totalPages = computed(() => {
-  return Math.ceil(iconList.value.length / itemsPerPage)
-})
-
-// 是否可以向左翻页
+// 是否可以选中上一个票券
 const canGoPrev = computed(() => {
-  return currentPage.value > 0
+  return ticketStore.activeTicketIndex > 0
 })
 
-// 是否可以向右翻页
+// 是否可以选中下一个票券
 const canGoNext = computed(() => {
-  return currentPage.value < totalPages.value - 1
+  return ticketStore.activeTicketIndex < iconList.value.length - 1
 })
 
-// 向左翻页
+// 选中上一个票券
 const handlePrev = () => {
   if (canGoPrev.value) {
-    currentPage.value--
+    const newIndex = ticketStore.activeTicketIndex - 1
+    ticketStore.setActiveTicket(newIndex)
+
+    // 自动翻页：如果新选中的票券不在当前页，切换到对应的页
+    const newPage = Math.floor(newIndex / itemsPerPage)
+    if (newPage !== currentPage.value) {
+      currentPage.value = newPage
+    }
   }
 }
 
-// 向右翻页
+// 选中下一个票券
 const handleNext = () => {
   if (canGoNext.value) {
-    currentPage.value++
+    const newIndex = ticketStore.activeTicketIndex + 1
+    ticketStore.setActiveTicket(newIndex)
+
+    // 自动翻页：如果新选中的票券不在当前页，切换到对应的页
+    const newPage = Math.floor(newIndex / itemsPerPage)
+    if (newPage !== currentPage.value) {
+      currentPage.value = newPage
+    }
   }
 }
 
