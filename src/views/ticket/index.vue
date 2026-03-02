@@ -6,24 +6,37 @@
       </div>
 
       <div class="nav-section">
-        <img :src="btnLeft" alt="left" class="nav-arrow" />
+        <div class="nav-arrow" :class="{ disabled: !canGoPrev }" @click="handlePrev">
+          <img :src="btnLeft" alt="left" />
+        </div>
 
         <div class="icon-list">
           <div
-            v-for="(item, index) in iconList"
-            :key="index"
+            v-for="(item, index) in visibleIcons"
+            :key="currentPage * itemsPerPage + index"
             class="icon-item"
-            :class="{ active: activeIndex === index }"
+            :class="{
+              active: ticketStore.activeTicketIndex === currentPage * itemsPerPage + index
+            }"
             @click="handleIconClick(index)"
           >
-            <img :src="item.icon" :alt="item.name" class="icon-img" />
+            <img
+              :src="item.icon"
+              :alt="item.name"
+              class="icon-img"
+              :class="{
+                'active-img': ticketStore.activeTicketIndex === currentPage * itemsPerPage + index
+              }"
+            />
           </div>
         </div>
 
-        <img :src="btnRight" alt="right" class="nav-arrow" />
+        <div class="nav-arrow" :class="{ disabled: !canGoNext }" @click="handleNext">
+          <img :src="btnRight" alt="right" />
+        </div>
       </div>
 
-      <div class="text-section">Register and get ₱3-₱888 bonus!</div>
+      <div class="text-section">{{ currentText }}</div>
 
       <!-- 时间倒计时 -->
       <div class="time-section">
@@ -50,7 +63,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { useTicketStore } from '@/store/modules/ticket'
 import Jindan from './component/jindan/index.vue'
 import Zhuanpan from './component/zhuanpan/index.vue'
 import Hongbao from './component/hongbao/index.vue'
@@ -59,49 +73,110 @@ import titleImg from '@/static/ticket/title.png'
 import btnLeft from '@/static/ticket/btn_left.png'
 import btnRight from '@/static/ticket/btn_right.png'
 import alarmImg from '@/static/ticket/alarm.png'
-import icon1 from '@/static/ticket/icon_1.png'
-import icon2 from '@/static/ticket/icon_2.png'
-import icon3 from '@/static/ticket/icon_3.png'
-import icon4 from '@/static/ticket/icon_4.png'
 
-// 图标列表
-const iconList = [
-  {
-    icon: icon1,
-    name: 'jindan',
-    component: Jindan
-  },
-  {
-    icon: icon2,
-    name: 'zhuanpan',
-    component: Zhuanpan
-  },
-  {
-    icon: icon3,
-    name: 'hongbao',
-    component: Hongbao
-  },
-  {
-    icon: icon4,
-    name: 'xianjin',
-    component: Xianjin
-  }
-]
-
-const activeIndex = ref(0)
-const currentComponent = computed(() => iconList[activeIndex.value].component)
-const handleIconClick = (index: number) => {
-  activeIndex.value = index
+// 组件映射
+const componentMap: Record<string, any> = {
+  Jindan,
+  Zhuanpan,
+  Hongbao,
+  Xianjin
 }
+
+const ticketStore = useTicketStore()
+
+// 动态生成图标列表
+const iconList = computed(() => {
+  const list = ticketStore.ticketList.map((ticket, index) => {
+    const isActive = ticketStore.activeTicketIndex === index
+    const iconPath = ticketStore.getIconByType(ticket.type, isActive)
+    const name = ticket.languageInfo[0]?.name || ''
+    return {
+      icon: iconPath,
+      name,
+      type: ticket.type,
+      component: componentMap[ticketStore.getComponentNameByType(ticket.type)]
+    }
+  })
+  return list
+})
+
+// 当前组件
+const currentComponent = computed(() => {
+  const currentIcon = iconList.value[ticketStore.activeTicketIndex]
+  return currentIcon?.component || Jindan
+})
+
+// 当前显示的文本
+const currentText = computed(() => {
+  const currentTicket = ticketStore.getCurrentTicket()
+  const text = currentTicket?.languageInfo[0]?.name || ''
+  return text
+})
+
+// 轮播相关
+const currentPage = ref(0) // 当前页码（从0开始）
+const itemsPerPage = 5 // 每页显示5个
+
+// 当前页显示的图标列表
+const visibleIcons = computed(() => {
+  const start = currentPage.value * itemsPerPage
+  const end = start + itemsPerPage
+  return iconList.value.slice(start, end)
+})
+
+// 总页数
+const totalPages = computed(() => {
+  return Math.ceil(iconList.value.length / itemsPerPage)
+})
+
+// 是否可以向左翻页
+const canGoPrev = computed(() => {
+  return currentPage.value > 0
+})
+
+// 是否可以向右翻页
+const canGoNext = computed(() => {
+  return currentPage.value < totalPages.value - 1
+})
+
+// 向左翻页
+const handlePrev = () => {
+  if (canGoPrev.value) {
+    currentPage.value--
+  }
+}
+
+// 向右翻页
+const handleNext = () => {
+  if (canGoNext.value) {
+    currentPage.value++
+  }
+}
+
+// 点击图标
+const handleIconClick = (index: number) => {
+  const actualIndex = currentPage.value * itemsPerPage + index
+  ticketStore.setActiveTicket(actualIndex)
+}
+
+// 初始化
+onMounted(async () => {
+  await ticketStore.fetchTicketList({
+    current: 1,
+    size: 10
+  })
+})
 </script>
 
 <style lang="scss" scoped>
 .ticket-container {
   min-height: 100vh;
+  height: 100vh;
   background: #000;
   padding: env(safe-area-inset-top) 0 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .ticketBox {
   position: relative;
@@ -111,7 +186,8 @@ const handleIconClick = (index: number) => {
   border-radius: 34px 34px 0 0;
   background: url('@/static/ticket/BG.png') no-repeat;
   background-size: contain;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   isolation: isolate;
   padding: 15px;
 
@@ -132,27 +208,74 @@ const handleIconClick = (index: number) => {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
+    height: 75px;
+    min-height: 75px;
+    gap: 8px;
 
     .nav-arrow {
-      width: 20px;
-      height: 20px;
+      flex-shrink: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
+
+      img {
+        width: 20px;
+        height: 20px;
+      }
+
+      &.disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      &:not(.disabled):hover {
+        opacity: 0.8;
+      }
     }
 
     .icon-list {
       flex: 1;
       display: flex;
-      padding: 0 10px;
-      gap: 10px;
+      padding: 0;
+      gap: 5px;
+      justify-content: flex-start;
+      align-items: center;
+      overflow: visible;
 
       .icon-item {
         display: flex;
         align-items: center;
+        justify-content: center;
         cursor: pointer;
+        flex: 0 0 auto;
+        max-width: 19%;
 
         .icon-img {
           width: auto;
           height: 60px;
+          max-width: 100%;
+          max-height: 65px;
+          display: block;
+          transition: all 0.3s ease;
+
+          &.active-img {
+            height: 65px;
+          }
+        }
+
+        &.active {
+          .icon-img {
+            height: 65px;
+          }
+        }
+
+        &:hover:not(.active) {
+          .icon-img {
+            transform: scale(1.05);
+          }
         }
       }
     }

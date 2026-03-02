@@ -1,20 +1,14 @@
 import request from '@/utils/request'
-
-// 活动列表类型
-export interface TicketListResponse {
-  code: number
-  message: string
-  data: any
-}
+import type { TicketMbTicketListResponse } from '@/interface/ticket_interface'
 
 /**
- * 活动列表
- * @returns Promise<TicketListResponse>
+ * 会员票券查询
+ * @returns Promise<TicketMbTicketListResponse>
  */
-export const getMbTicketList = (params = {}) => {
-  return request.post<TicketListResponse>('/activity/api/list', params)
+export const ticketMbTicketList = (params = {}): Promise<TicketMbTicketListResponse> => {
+  return request.post('/ticket/api/mbTicketList', params) as Promise<TicketMbTicketListResponse>
 }
 
 export default {
-  getMbTicketList
+  ticketMbTicketList
 }
