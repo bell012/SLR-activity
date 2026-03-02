@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import checkinDecorationLeft from '@/assets/svg/checkin/checkin-decoration-left.svg'
-import checkinDecorationRight from '@/assets/svg/checkin/checkin-decoration-right.svg'
+import checkinDecorationLeft from '@/assets/svg/checkin/checkin-decoration-left.png'
+import checkinDecorationRight from '@/assets/svg/checkin/checkin-decoration-right.png'
 import { computed } from 'vue'
 
 const props = withDefaults(

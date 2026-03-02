@@ -9,14 +9,14 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useCheckInSlider } from './composables/useCheckInSlider'
 
-import activityTitleImg from '@/assets/png/checkin/checkin-activity-title.png'
-import checkinBtnActive from '@/assets/png/checkin/checkin-btn-active.png'
-import checkinBtnDisabled from '@/assets/png/checkin/checkin-btn-disabled.png'
-import rulesIcon from '@/assets/svg/checkin/rules-icon.svg'
+import activityTitleImg from '@/assets/svg/checkin/checkin-activity-title.png'
+import checkinBtnActive from '@/assets/svg/checkin/checkin-btn-active.png'
+import checkinBtnDisabled from '@/assets/svg/checkin/checkin-btn-disabled.png'
+import rulesIcon from '@/assets/svg/checkin/rules-icon.png'
 
-import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
-import checkinGiftBox from '@/assets/svg/checkin/checkin-gift-box.svg'
-import checkinTopScrollOverlay from '@/assets/svg/checkin/checkin-top-scroll-overlay.svg'
+import checkinBg from '@/assets/svg/checkin/checkin-bg.png'
+import checkinGiftBox from '@/assets/svg/checkin/checkin-gift-box.png'
+import checkinTopScrollOverlay from '@/assets/svg/checkin/checkin-top-scroll-overlay.png'
 import PopupBig from '@/views/ticket/component/PopupBig.vue'
 import PopupSmall from '@/views/ticket/component/PopupSmall.vue'
 import CheckinSkeleton from './CheckIn-skeleton.vue'
@@ -48,6 +48,14 @@ const languageCode = computed(() => {
   if (raw === 'en') return 'eng'
   return raw
 })
+const formatDate = (value?: number) => {
+  if (!value) return ''
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: '2-digit',
+    year: 'numeric'
+  }).format(new Date(value))
+}
 
 const pickLocalizedText = (
   list?: Array<{ languageCode?: string; name?: string; description?: string }>,
@@ -86,7 +94,25 @@ const getCurrencySymbol = (currency?: string) => {
   if (!currency) return ''
   return map[currency] ?? `${currency} `
 }
-
+const startTagText = computed(() => {
+  const startDate = activityDetail.value?.startDate
+  const endDate = activityDetail.value?.endDate
+  const now = Date.now()
+  if (startDate && now < startDate) {
+    const startText = formatDate(startDate)
+    return startText ? `Starts On: ${startText}` : 'Starts On: --'
+  }
+  if (endDate && now <= endDate) {
+    const endText = formatDate(endDate)
+    return endText ? `Ends On: ${endText}` : 'Ends On: --'
+  }
+  if (endDate) {
+    const endText = formatDate(endDate)
+    return endText ? `Ends On: ${endText}` : 'Ends On: --'
+  }
+  const startText = formatDate(startDate)
+  return startText ? `Starts On: ${startText}` : 'Starts On: --'
+})
 const resolveImage = (value?: string) => {
   if (!value) return ''
   if (value.startsWith('http') || value.startsWith('data:')) return value
@@ -203,6 +229,7 @@ const smallPopupVisible = ref(false)
 const smallPopupAmount = ref<string | number>('0.00')
 const bigPopupVisible = ref(false)
 const bigPopupAmount = ref<string | number>('')
+const popupBigSubtitle = ref<string>('')
 const rewardsList = ref<PopupRewardItem[]>([])
 
 const hasCustomPopupVisible = computed(
@@ -441,7 +468,8 @@ const showBigPopupByTicket = <T extends PopupRewardPayloadBase>(result: T | null
 
   const amount = Number(result?.amount)
   bigPopupAmount.value = Number.isFinite(amount) && amount > 0 ? amount.toFixed(2) : ''
-
+  popupBigSubtitle.value =
+    bigPopupAmount.value !== '' ? 'You’ve Earned a Coupon & Coupons' : 'You’ve Earned a Coupon'
   smallPopupVisible.value = false
   bigPopupVisible.value = true
   return true
@@ -848,12 +876,9 @@ onUnmounted(() => {
     <div v-else class="check-in-modal">
       <div class="modal-bg" :style="{ backgroundImage: `url(${activityBackground})` }" />
 
-      <!-- <header class="modal-header">
+      <header class="modal-header">
         <div class="start-tag">{{ startTagText }}</div>
-        <button class="back-btn" aria-label="Back" @click="showTestPopups">
-          <span class="back-icon" />
-        </button>
-      </header> -->
+      </header>
 
       <div class="title-img"><img :src="activityTitleImg" alt="activity title" /></div>
       <p class="subtitle">{{ activitySubtitle }}</p>
@@ -930,7 +955,7 @@ onUnmounted(() => {
 
       <PopupBig
         :visible="bigPopupVisible"
-        subtitle="You’ve Earned a Coupon"
+        :subtitle="popupBigSubtitle"
         :amount="bigPopupAmount"
         :rewards="rewardsList"
         button-text="USE NOW"
@@ -1014,17 +1039,6 @@ onUnmounted(() => {
   font-family: 'Inter', sans-serif;
   font-size: 13px;
   color: #f15e62;
-}
-
-.back-btn {
-  width: 38px;
-  height: 38px;
-  border-radius: 999px;
-  background: rgba(244, 122, 122, 0.2);
-  border: 1px solid #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 .back-icon {

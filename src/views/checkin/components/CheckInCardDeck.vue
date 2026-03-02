@@ -3,9 +3,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 // 静态资源（卡片背景、装饰、分割线）
-import checkinCardMain from '@/assets/svg/checkin/checkin-card-main.svg'
-import checkinDecorationBg from '@/assets/svg/checkin/checkin-decoration-bg.svg'
-import checkinVectorDivider from '@/assets/svg/checkin/checkin-vector-divider.svg'
+import checkinCardMain from '@/assets/svg/checkin/checkin-card-main.png'
+import checkinDecorationBg from '@/assets/svg/checkin/checkin-decoration-bg.png'
+import checkinVectorDivider from '@/assets/svg/checkin/checkin-vector-divider.png'
 import type { AnimationItem } from 'lottie-web'
 import lottie from 'lottie-web'
 import CheckInConditionsPanel from './CheckInConditionsPanel.vue'
