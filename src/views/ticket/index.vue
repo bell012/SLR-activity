@@ -43,14 +43,14 @@
         <img :src="alarmImg" alt="alarm" class="alarm-icon" />
         <span class="time-label">Time Left</span>
         <div class="time-numbers">
-          <span class="time-num">9</span>
-          <span class="time-num">9</span>
+          <span class="time-num">{{ countdown.hours[0] }}</span>
+          <span class="time-num">{{ countdown.hours[1] }}</span>
           <span class="time-separator">:</span>
-          <span class="time-num">9</span>
-          <span class="time-num">9</span>
+          <span class="time-num">{{ countdown.minutes[0] }}</span>
+          <span class="time-num">{{ countdown.minutes[1] }}</span>
           <span class="time-separator">:</span>
-          <span class="time-num">9</span>
-          <span class="time-num">9</span>
+          <span class="time-num">{{ countdown.seconds[0] }}</span>
+          <span class="time-num">{{ countdown.seconds[1] }}</span>
         </div>
       </div>
 
@@ -63,7 +63,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { useTicketStore } from '@/store/modules/ticket'
 import Jindan from './component/jindan/index.vue'
 import Zhuanpan from './component/zhuanpan/index.vue'
@@ -83,6 +83,9 @@ const componentMap: Record<string, any> = {
 }
 
 const ticketStore = useTicketStore()
+
+// 当前时间
+const currentTime = ref(Date.now())
 
 // 动态生成图标列表
 const iconList = computed(() => {
@@ -122,6 +125,45 @@ const visibleIcons = computed(() => {
   const start = currentPage.value * itemsPerPage
   const end = start + itemsPerPage
   return iconList.value.slice(start, end)
+})
+
+// 倒计时
+const countdown = computed(() => {
+  const currentTicket = ticketStore.getCurrentTicket()
+  if (!currentTicket) {
+    return { hours: '00', minutes: '00', seconds: '00' }
+  }
+
+  const now = currentTime.value
+  const { effectTime, expireTime } = currentTicket
+
+  // 计算倒计时目标时间
+  let targetTime: number
+  if (effectTime > now) {
+    // 票券未生效，倒计时到生效时间
+    targetTime = effectTime
+  } else {
+    // 票券已生效，倒计时到过期时间
+    targetTime = expireTime
+  }
+
+  // 计算剩余时间（毫秒）
+  const remainingMs = targetTime - now
+  if (remainingMs <= 0) {
+    return { hours: '00', minutes: '00', seconds: '00' }
+  }
+
+  // 转换为时分秒
+  const totalSeconds = Math.floor(remainingMs / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  return {
+    hours: String(hours).padStart(2, '0'),
+    minutes: String(minutes).padStart(2, '0'),
+    seconds: String(seconds).padStart(2, '0')
+  }
 })
 
 // 是否可以选中上一个票券
@@ -168,12 +210,24 @@ const handleIconClick = (index: number) => {
   ticketStore.setActiveTicket(actualIndex)
 }
 
+let timer: number | null = null
+
 // 初始化
 onMounted(async () => {
   await ticketStore.fetchTicketList({
     current: 1,
     size: 10
   })
+
+  timer = window.setInterval(() => {
+    currentTime.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (timer) {
+    window.clearInterval(timer)
+  }
 })
 </script>
 
