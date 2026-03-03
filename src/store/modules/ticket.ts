@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { ticketApi } from '@/api'
-import type { TicketMbTicketListRes, TicketProgressResponse } from '@/interface/ticket_interface'
+import type {
+  TicketMbTicketListRes,
+  TicketProgressResponse,
+  TicketMarqueeResponse
+} from '@/interface/ticket_interface'
 
 export const useTicketStore = defineStore('ticket', () => {
   // 票券列表数据
@@ -12,6 +16,8 @@ export const useTicketStore = defineStore('ticket', () => {
   const loading = ref(false)
   // 进度数据 Map，key 为 rowId，value 为进度数据
   const progressDataMap = ref<Record<number, TicketProgressResponse['result']>>({})
+  // 中奖数据 Map，key 为 ticketType
+  const marqueeDataMap = ref<Record<number, TicketMarqueeResponse['result']>>({})
 
   /**
    * 获取会员票券列表
@@ -21,7 +27,7 @@ export const useTicketStore = defineStore('ticket', () => {
     try {
       console.log('会员票券查询参数:', params)
       const response = await ticketApi.ticketMbTicketList(params)
-      console.log('会员票券完整响应:', response)
+      console.log('会员票券数据', response)
       if (response && response.result && Array.isArray(response.result)) {
         ticketList.value = response.result
         // 默认选中第一个
@@ -148,11 +154,42 @@ export const useTicketStore = defineStore('ticket', () => {
     return percentage
   }
 
+  /**
+   * 获取中奖数据
+   * @param ticketType 票券类型
+   */
+  const fetchMarqueeData = async (ticketType: number) => {
+    try {
+      console.log('中奖数据查询参数:', ticketType)
+      const response = await ticketApi.ticketMarquee({ ticketType })
+      console.log('中奖数据', response)
+      if (response && response.result) {
+        marqueeDataMap.value = {
+          ...marqueeDataMap.value,
+          [ticketType]: response.result
+        }
+      }
+      return response
+    } catch (error) {
+      console.error(error)
+      throw error
+    }
+  }
+
+  /**
+   * 根据 ticketType 获取中奖数据
+   * @param ticketType 票券类型
+   */
+  const getMarqueeByType = (ticketType: number) => {
+    return marqueeDataMap.value[ticketType] || null
+  }
+
   return {
     ticketList,
     activeTicketIndex,
     loading,
     progressDataMap,
+    marqueeDataMap,
     fetchTicketList,
     setActiveTicket,
     getCurrentTicket,
@@ -160,6 +197,8 @@ export const useTicketStore = defineStore('ticket', () => {
     getComponentNameByType,
     fetchTicketProgress,
     getProgressByRowId,
-    calculateProgressPercentage
+    calculateProgressPercentage,
+    fetchMarqueeData,
+    getMarqueeByType
   }
 })

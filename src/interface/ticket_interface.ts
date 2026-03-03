@@ -54,3 +54,23 @@ export interface TicketProgressResponse {
   }
   success: boolean
 }
+
+// 中奖数据  请求参数
+export interface TicketMarqueeParams {
+  ticketType: number // 类型
+}
+
+// 中奖数据  响应数据
+export interface TicketMarqueeResponse {
+  code: string
+  message: string
+  result: {
+    enabled: boolean //是否启用跑马灯
+    records: Array<{
+      memberAccount: string //会员账号
+      amountDisplay: string //金额展示
+      winTime: number //中奖时间
+    }>
+  }
+  success: boolean
+}
