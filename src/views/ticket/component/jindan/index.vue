@@ -30,7 +30,7 @@
 
     <!-- 进度条 -->
     <div class="progress-wrapper">
-      <Progress :percentage="50" />
+      <Progress :percentage="progressPercentage" />
     </div>
 
     <!-- 中奖列表 -->
@@ -64,14 +64,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useTicketStore } from '@/store/modules/ticket'
 import Progress from '../progress.vue'
 import Wins from '../wins.vue'
 import PopupSmall from '../PopupSmall.vue'
 import PopupBig from '../PopupBig.vue'
 
+const ticketStore = useTicketStore()
+
 const smallPopupVisible = ref(false)
 const bigPopupVisible = ref(false)
+
+// 获取当前票券的进度数据
+const currentTicket = computed(() => ticketStore.getCurrentTicket())
+const currentRowId = computed(() => currentTicket.value?.rowId || 0)
+
+// 计算进度百分比
+const progressPercentage = computed(() => {
+  if (!currentRowId.value) return 0
+  return ticketStore.calculateProgressPercentage(currentRowId.value)
+})
 
 const rewardsList = ref([
   {
@@ -117,6 +130,22 @@ const handleBigAction = () => {
   console.log('大弹窗按钮点击')
   bigPopupVisible.value = false
 }
+
+// 获取票券进度数据
+const loadProgressData = async () => {
+  if (!currentRowId.value) return
+  await ticketStore.fetchTicketProgress(currentRowId.value)
+}
+
+onMounted(() => {
+  loadProgressData()
+})
+
+watch(currentRowId, (newRowId) => {
+  if (newRowId) {
+    loadProgressData()
+  }
+})
 </script>
 
 <style lang="scss" scoped>

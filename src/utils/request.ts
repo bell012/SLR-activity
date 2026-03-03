@@ -13,12 +13,12 @@ const service: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json;charset=UTF-8',
     site: SITE,
-    TraceId: 'f4c7be16c52a26a5d84312ac3866c974',
+    TraceId: '30049825-9366-4709-AA4A-14E40D8AF5E0',
     channelId: '1',
     languageCode: 'eng',
     bundleId: '1.0.0',
     Authorization: 'd41d8cd98f00b204e9800998ecf8427e',
-    'X-Auth-Token': 'fda914e1-4d27-492d-8c50-840418acba16'
+    'X-Auth-Token': 'ad525a77-c96a-44de-be6f-84db643f6da2'
   }
 })
 
