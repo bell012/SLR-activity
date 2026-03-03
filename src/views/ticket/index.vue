@@ -1,62 +1,76 @@
 <template>
   <div class="ticket-container">
     <div class="ticketBox">
-      <div class="title-section">
-        <img :src="titleImg" alt="title" class="title-img" />
-      </div>
-
-      <div class="nav-section">
-        <div class="nav-arrow" :class="{ disabled: !canGoPrev }" @click="handlePrev">
-          <img :src="btnLeft" alt="left" />
+      <template v-if="!showTasks">
+        <div class="title-section">
+          <img :src="titleImg" alt="title" class="title-img" />
         </div>
 
-        <div class="icon-list">
-          <div
-            v-for="(item, index) in visibleIcons"
-            :key="currentPage * itemsPerPage + index"
-            class="icon-item"
-            :class="{
-              active: ticketStore.activeTicketIndex === currentPage * itemsPerPage + index
-            }"
-            @click="handleIconClick(index)"
-          >
-            <img
-              :src="item.icon"
-              :alt="item.name"
-              class="icon-img"
+        <div class="nav-section">
+          <div class="nav-arrow" :class="{ disabled: !canGoPrev }" @click="handlePrev">
+            <img :src="btnLeft" alt="left" />
+          </div>
+
+          <div class="icon-list">
+            <div
+              v-for="(item, index) in visibleIcons"
+              :key="currentPage * itemsPerPage + index"
+              class="icon-item"
               :class="{
-                'active-img': ticketStore.activeTicketIndex === currentPage * itemsPerPage + index
+                active: ticketStore.activeTicketIndex === currentPage * itemsPerPage + index
               }"
-            />
+              @click="handleIconClick(index)"
+            >
+              <img
+                :src="item.icon"
+                :alt="item.name"
+                class="icon-img"
+                :class="{
+                  'active-img': ticketStore.activeTicketIndex === currentPage * itemsPerPage + index
+                }"
+              />
+            </div>
+          </div>
+
+          <div class="nav-arrow" :class="{ disabled: !canGoNext }" @click="handleNext">
+            <img :src="btnRight" alt="right" />
           </div>
         </div>
 
-        <div class="nav-arrow" :class="{ disabled: !canGoNext }" @click="handleNext">
-          <img :src="btnRight" alt="right" />
+        <div class="text-section">{{ currentText }}</div>
+
+        <!-- 时间倒计时 -->
+        <div class="time-section">
+          <img :src="alarmImg" alt="alarm" class="alarm-icon" />
+          <span class="time-label">Time Left</span>
+          <div class="time-numbers">
+            <span class="time-num">{{ countdown.hours[0] }}</span>
+            <span class="time-num">{{ countdown.hours[1] }}</span>
+            <span class="time-separator">:</span>
+            <span class="time-num">{{ countdown.minutes[0] }}</span>
+            <span class="time-num">{{ countdown.minutes[1] }}</span>
+            <span class="time-separator">:</span>
+            <span class="time-num">{{ countdown.seconds[0] }}</span>
+            <span class="time-num">{{ countdown.seconds[1] }}</span>
+          </div>
         </div>
-      </div>
 
-      <div class="text-section">{{ currentText }}</div>
-
-      <!-- 时间倒计时 -->
-      <div class="time-section">
-        <img :src="alarmImg" alt="alarm" class="alarm-icon" />
-        <span class="time-label">Time Left</span>
-        <div class="time-numbers">
-          <span class="time-num">{{ countdown.hours[0] }}</span>
-          <span class="time-num">{{ countdown.hours[1] }}</span>
-          <span class="time-separator">:</span>
-          <span class="time-num">{{ countdown.minutes[0] }}</span>
-          <span class="time-num">{{ countdown.minutes[1] }}</span>
-          <span class="time-separator">:</span>
-          <span class="time-num">{{ countdown.seconds[0] }}</span>
-          <span class="time-num">{{ countdown.seconds[1] }}</span>
+        <!-- 游戏组件 -->
+        <div class="component-section">
+          <component :is="currentComponent" />
         </div>
-      </div>
+      </template>
 
-      <!-- 组件切换 -->
-      <div class="component-section">
-        <component :is="currentComponent" />
+      <!-- 任务组件  -->
+      <template v-else>
+        <div class="component-section tasks-section">
+          <Tasks />
+        </div>
+      </template>
+
+      <!-- 任务按钮 -->
+      <div class="task-toggle-btn" @click="toggleTasks">
+        {{ showTasks ? 'Back to Game' : 'View Tasks' }}
       </div>
     </div>
   </div>
@@ -69,6 +83,7 @@ import Jindan from './component/jindan/index.vue'
 import Zhuanpan from './component/zhuanpan/index.vue'
 import Hongbao from './component/hongbao/index.vue'
 import Xianjin from './component/xianjin/index.vue'
+import Tasks from './component/Tasks.vue'
 import titleImg from '@/static/ticket/title.png'
 import btnLeft from '@/static/ticket/btn_left.png'
 import btnRight from '@/static/ticket/btn_right.png'
@@ -80,6 +95,14 @@ const componentMap: Record<string, any> = {
   Zhuanpan,
   Hongbao,
   Xianjin
+}
+
+// 任务弹窗显示状态
+const showTasks = ref(false)
+
+// 切换任务弹窗
+const toggleTasks = () => {
+  showTasks.value = !showTasks.value
 }
 
 const ticketStore = useTicketStore()
@@ -411,6 +434,31 @@ onUnmounted(() => {
   .component-section {
     width: 100%;
     height: 100%;
+
+    &.tasks-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-y: auto;
+    }
+  }
+
+  .task-toggle-btn {
+    margin-top: 20px;
+    padding: 12px 40px;
+    background: linear-gradient(180deg, #ffbc47 0%, #ff8c00 100%);
+    border-radius: 25px;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255, 188, 71, 0.4);
+
+    &:active {
+      transform: translateY(0);
+    }
   }
 }
 </style>
