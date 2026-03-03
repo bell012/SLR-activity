@@ -5,15 +5,15 @@
     <div class="jindan-box">
       <div class="jindan-grid">
         <div class="jindan-row">
-          <JindanItem v-for="i in 2" :key="`row1-${i}`" />
+          <JindanItem v-for="i in 2" :key="`row1-${i}`" @click="handleJindanClick(1, i)" />
         </div>
 
         <div class="jindan-row">
-          <JindanItem v-for="i in 3" :key="`row2-${i}`" />
+          <JindanItem v-for="i in 3" :key="`row2-${i}`" @click="handleJindanClick(2, i)" />
         </div>
 
         <div class="jindan-row">
-          <JindanItem v-for="i in 3" :key="`row3-${i}`" />
+          <JindanItem v-for="i in 3" :key="`row3-${i}`" @click="handleJindanClick(3, i)" />
         </div>
       </div>
 
@@ -124,6 +124,11 @@ const handleSmallAction = () => {
 const handleBigAction = () => {
   console.log('大弹窗按钮点击')
   bigPopupVisible.value = false
+}
+
+// 点击金蛋事件处理
+const handleJindanClick = (row: number, index: number) => {
+  console.log(`点击了第 ${row} 排第 ${index} 个金蛋`)
 }
 
 // 获取票券进度数据
