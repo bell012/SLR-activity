@@ -5,21 +5,15 @@
     <div class="jindan-box">
       <div class="jindan-grid">
         <div class="jindan-row">
-          <div v-for="i in 2" :key="`row1-${i}`" class="jindan-item">
-            <img src="@/static/ticket/jindan.png" alt="金蛋" class="jindan-img" />
-          </div>
+          <JindanItem v-for="i in 2" :key="`row1-${i}`" />
         </div>
 
         <div class="jindan-row">
-          <div v-for="i in 3" :key="`row2-${i}`" class="jindan-item">
-            <img src="@/static/ticket/jindan.png" alt="金蛋" class="jindan-img" />
-          </div>
+          <JindanItem v-for="i in 3" :key="`row2-${i}`" />
         </div>
 
         <div class="jindan-row">
-          <div v-for="i in 3" :key="`row3-${i}`" class="jindan-item">
-            <img src="@/static/ticket/jindan.png" alt="金蛋" class="jindan-img" />
-          </div>
+          <JindanItem v-for="i in 3" :key="`row3-${i}`" />
         </div>
       </div>
 
@@ -70,6 +64,7 @@ import Progress from '../progress.vue'
 import Wins from '../wins.vue'
 import PopupSmall from '../PopupSmall.vue'
 import PopupBig from '../PopupBig.vue'
+import JindanItem from './JindanItem.vue'
 
 const ticketStore = useTicketStore()
 
@@ -186,21 +181,6 @@ watch(currentRowId, (newRowId) => {
         justify-content: center;
         align-items: center;
         gap: 15px;
-
-        .jindan-item {
-          width: 80px;
-          height: 92px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-
-          .jindan-img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-          }
-        }
       }
     }
 
