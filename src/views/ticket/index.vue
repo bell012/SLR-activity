@@ -1,98 +1,257 @@
 <template>
   <div class="ticket-container">
     <div class="ticketBox">
-      <div class="title-section">
-        <img :src="titleImg" alt="title" class="title-img" />
-      </div>
+      <template v-if="!showTasks">
+        <div class="title-section">
+          <img :src="titleImg" alt="title" class="title-img" />
+        </div>
 
-      <div class="nav-section">
-        <img :src="btnLeft" alt="left" class="nav-arrow" />
+        <div class="nav-section">
+          <div class="nav-arrow" :class="{ disabled: !canGoPrev }" @click="handlePrev">
+            <img :src="btnLeft" alt="left" />
+          </div>
 
-        <div class="icon-list">
-          <div
-            v-for="(item, index) in iconList"
-            :key="index"
-            class="icon-item"
-            :class="{ active: activeIndex === index }"
-            @click="handleIconClick(index)"
-          >
-            <img :src="item.icon" :alt="item.name" class="icon-img" />
+          <div class="icon-list">
+            <div
+              v-for="(item, index) in visibleIcons"
+              :key="currentPage * itemsPerPage + index"
+              class="icon-item"
+              :class="{
+                active: ticketStore.activeTicketIndex === currentPage * itemsPerPage + index
+              }"
+              @click="handleIconClick(index)"
+            >
+              <img
+                :src="item.icon"
+                :alt="item.name"
+                class="icon-img"
+                :class="{
+                  'active-img': ticketStore.activeTicketIndex === currentPage * itemsPerPage + index
+                }"
+              />
+            </div>
+          </div>
+
+          <div class="nav-arrow" :class="{ disabled: !canGoNext }" @click="handleNext">
+            <img :src="btnRight" alt="right" />
           </div>
         </div>
 
-        <img :src="btnRight" alt="right" class="nav-arrow" />
-      </div>
+        <div class="text-section">{{ currentText }}</div>
 
-      <div class="text-section">Register and get ₱3-₱888 bonus!</div>
-
-      <!-- 时间倒计时 -->
-      <div class="time-section">
-        <img :src="alarmImg" alt="alarm" class="alarm-icon" />
-        <span class="time-label">Time Left</span>
-        <div class="time-numbers">
-          <span class="time-num">9</span>
-          <span class="time-num">9</span>
-          <span class="time-separator">:</span>
-          <span class="time-num">9</span>
-          <span class="time-num">9</span>
-          <span class="time-separator">:</span>
-          <span class="time-num">9</span>
-          <span class="time-num">9</span>
+        <!-- 时间倒计时 -->
+        <div class="time-section">
+          <img :src="alarmImg" alt="alarm" class="alarm-icon" />
+          <span class="time-label">Time Left</span>
+          <div class="time-numbers">
+            <span class="time-num">{{ countdown.hours[0] }}</span>
+            <span class="time-num">{{ countdown.hours[1] }}</span>
+            <span class="time-separator">:</span>
+            <span class="time-num">{{ countdown.minutes[0] }}</span>
+            <span class="time-num">{{ countdown.minutes[1] }}</span>
+            <span class="time-separator">:</span>
+            <span class="time-num">{{ countdown.seconds[0] }}</span>
+            <span class="time-num">{{ countdown.seconds[1] }}</span>
+          </div>
         </div>
-      </div>
 
-      <!-- 组件切换 -->
-      <div class="component-section">
-        <component :is="currentComponent" />
+        <!-- 游戏组件 -->
+        <div class="component-section">
+          <component :is="currentComponent" />
+        </div>
+      </template>
+
+      <!-- 任务组件  -->
+      <template v-else>
+        <div class="component-section tasks-section">
+          <Tasks />
+        </div>
+      </template>
+
+      <!-- 任务按钮 -->
+      <div class="task-toggle-btn" @click="toggleTasks">
+        {{ showTasks ? 'Back to Game' : 'View Tasks' }}
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useTicketStore } from '@/store/modules/ticket'
 import Jindan from './component/jindan/index.vue'
 import Zhuanpan from './component/zhuanpan/index.vue'
 import Hongbao from './component/hongbao/index.vue'
 import Xianjin from './component/xianjin/index.vue'
+import Tasks from './component/Tasks.vue'
 import titleImg from '@/static/ticket/title.png'
 import btnLeft from '@/static/ticket/btn_left.png'
 import btnRight from '@/static/ticket/btn_right.png'
 import alarmImg from '@/static/ticket/alarm.png'
-import icon1 from '@/static/ticket/icon_1.png'
-import icon2 from '@/static/ticket/icon_2.png'
-import icon3 from '@/static/ticket/icon_3.png'
-import icon4 from '@/static/ticket/icon_4.png'
 
-// 图标列表
-const iconList = [
-  {
-    icon: icon1,
-    name: 'jindan',
-    component: Jindan
-  },
-  {
-    icon: icon2,
-    name: 'zhuanpan',
-    component: Zhuanpan
-  },
-  {
-    icon: icon3,
-    name: 'hongbao',
-    component: Hongbao
-  },
-  {
-    icon: icon4,
-    name: 'xianjin',
-    component: Xianjin
-  }
-]
-
-const activeIndex = ref(0)
-const currentComponent = computed(() => iconList[activeIndex.value].component)
-const handleIconClick = (index: number) => {
-  activeIndex.value = index
+// 组件映射
+const componentMap: Record<string, any> = {
+  Jindan,
+  Zhuanpan,
+  Hongbao,
+  Xianjin
 }
+
+// 任务弹窗显示状态
+const showTasks = ref(false)
+
+// 切换任务弹窗
+const toggleTasks = () => {
+  showTasks.value = !showTasks.value
+}
+
+const ticketStore = useTicketStore()
+
+// 当前时间
+const currentTime = ref(Date.now())
+
+// 动态生成图标列表
+const iconList = computed(() => {
+  const list = ticketStore.ticketList.map((ticket, index) => {
+    const isActive = ticketStore.activeTicketIndex === index
+    const iconPath = ticketStore.getIconByType(ticket.type, isActive)
+    const name = ticket.languageInfo[0]?.name || ''
+    return {
+      icon: iconPath,
+      name,
+      type: ticket.type,
+      component: componentMap[ticketStore.getComponentNameByType(ticket.type)]
+    }
+  })
+  return list
+})
+
+// 当前组件
+const currentComponent = computed(() => {
+  const currentIcon = iconList.value[ticketStore.activeTicketIndex]
+  return currentIcon?.component || Jindan
+})
+
+// 当前显示的文本
+const currentText = computed(() => {
+  const currentTicket = ticketStore.getCurrentTicket()
+  const text = currentTicket?.languageInfo[0]?.name || ''
+  return text
+})
+
+// 轮播相关
+const currentPage = ref(0) // 当前页码（从0开始）
+const itemsPerPage = 5 // 每页显示5个
+
+// 当前页显示的图标列表
+const visibleIcons = computed(() => {
+  const start = currentPage.value * itemsPerPage
+  const end = start + itemsPerPage
+  return iconList.value.slice(start, end)
+})
+
+// 倒计时
+const countdown = computed(() => {
+  const currentTicket = ticketStore.getCurrentTicket()
+  if (!currentTicket) {
+    return { hours: '00', minutes: '00', seconds: '00' }
+  }
+
+  const now = currentTime.value
+  const { effectTime, expireTime } = currentTicket
+
+  // 计算倒计时目标时间
+  let targetTime: number
+  if (effectTime > now) {
+    // 票券未生效，倒计时到生效时间
+    targetTime = effectTime
+  } else {
+    // 票券已生效，倒计时到过期时间
+    targetTime = expireTime
+  }
+
+  // 计算剩余时间（毫秒）
+  const remainingMs = targetTime - now
+  if (remainingMs <= 0) {
+    return { hours: '00', minutes: '00', seconds: '00' }
+  }
+
+  // 转换为时分秒
+  const totalSeconds = Math.floor(remainingMs / 1000)
+  const hours = Math.floor(totalSeconds / 3600)
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const seconds = totalSeconds % 60
+
+  return {
+    hours: String(hours).padStart(2, '0'),
+    minutes: String(minutes).padStart(2, '0'),
+    seconds: String(seconds).padStart(2, '0')
+  }
+})
+
+// 是否可以选中上一个票券
+const canGoPrev = computed(() => {
+  return ticketStore.activeTicketIndex > 0
+})
+
+// 是否可以选中下一个票券
+const canGoNext = computed(() => {
+  return ticketStore.activeTicketIndex < iconList.value.length - 1
+})
+
+// 选中上一个票券
+const handlePrev = async () => {
+  if (canGoPrev.value) {
+    const newIndex = ticketStore.activeTicketIndex - 1
+    ticketStore.setActiveTicket(newIndex)
+
+    // 自动翻页：如果新选中的票券不在当前页，切换到对应的页
+    const newPage = Math.floor(newIndex / itemsPerPage)
+    if (newPage !== currentPage.value) {
+      currentPage.value = newPage
+    }
+  }
+}
+
+// 选中下一个票券
+const handleNext = async () => {
+  if (canGoNext.value) {
+    const newIndex = ticketStore.activeTicketIndex + 1
+    ticketStore.setActiveTicket(newIndex)
+
+    // 自动翻页：如果新选中的票券不在当前页，切换到对应的页
+    const newPage = Math.floor(newIndex / itemsPerPage)
+    if (newPage !== currentPage.value) {
+      currentPage.value = newPage
+    }
+  }
+}
+
+// 点击图标
+const handleIconClick = async (index: number) => {
+  const actualIndex = currentPage.value * itemsPerPage + index
+  ticketStore.setActiveTicket(actualIndex)
+}
+
+let timer: number | null = null
+
+// 初始化
+onMounted(async () => {
+  await ticketStore.fetchTicketList({
+    current: 1,
+    size: 10
+  })
+
+  timer = window.setInterval(() => {
+    currentTime.value = Date.now()
+  }, 1000)
+})
+
+onUnmounted(() => {
+  if (timer) {
+    window.clearInterval(timer)
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -102,6 +261,7 @@ const handleIconClick = (index: number) => {
   padding: env(safe-area-inset-top) 0 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .ticketBox {
   position: relative;
@@ -110,8 +270,9 @@ const handleIconClick = (index: number) => {
   margin-top: 44px;
   border-radius: 34px 34px 0 0;
   background: url('@/static/ticket/BG.png') no-repeat;
-  background-size: 100% 100%;
-  overflow: hidden;
+  background-size: contain;
+  overflow-y: auto;
+  overflow-x: hidden;
   isolation: isolate;
   padding: 15px;
 
@@ -132,27 +293,73 @@ const handleIconClick = (index: number) => {
     align-items: center;
     justify-content: space-between;
     margin-bottom: 10px;
+    height: 75px;
+    min-height: 75px;
+    gap: 8px;
 
     .nav-arrow {
-      width: 20px;
-      height: 20px;
+      flex-shrink: 0;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
+
+      img {
+        width: 20px;
+        height: 20px;
+      }
+
+      &.disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+      }
+
+      &:not(.disabled):hover {
+        opacity: 0.8;
+      }
     }
 
     .icon-list {
       flex: 1;
       display: flex;
-      padding: 0 10px;
-      gap: 10px;
+      gap: 5px;
+      justify-content: center;
+      align-items: center;
+      overflow: visible;
 
       .icon-item {
         display: flex;
         align-items: center;
+        justify-content: center;
         cursor: pointer;
+        flex: 0 0 auto;
+        max-width: 19%;
 
         .icon-img {
           width: auto;
           height: 60px;
+          max-width: 100%;
+          max-height: 65px;
+          display: block;
+          transition: all 0.3s ease;
+
+          &.active-img {
+            height: 65px;
+          }
+        }
+
+        &.active {
+          .icon-img {
+            height: 65px;
+          }
+        }
+
+        &:hover:not(.active) {
+          .icon-img {
+            transform: scale(1.05);
+          }
         }
       }
     }
@@ -227,6 +434,31 @@ const handleIconClick = (index: number) => {
   .component-section {
     width: 100%;
     height: 100%;
+
+    &.tasks-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      overflow-y: auto;
+    }
+  }
+
+  .task-toggle-btn {
+    margin-top: 20px;
+    padding: 12px 40px;
+    background: linear-gradient(180deg, #ffbc47 0%, #ff8c00 100%);
+    border-radius: 25px;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(255, 188, 71, 0.4);
+
+    &:active {
+      transform: translateY(0);
+    }
   }
 }
 </style>

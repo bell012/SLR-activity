@@ -5,21 +5,15 @@
     <div class="jindan-box">
       <div class="jindan-grid">
         <div class="jindan-row">
-          <div v-for="i in 2" :key="`row1-${i}`" class="jindan-item">
-            <img src="@/static/ticket/jindan.png" alt="金蛋" class="jindan-img" />
-          </div>
+          <JindanItem v-for="i in 2" :key="`row1-${i}`" @click="handleJindanClick(1, i)" />
         </div>
 
         <div class="jindan-row">
-          <div v-for="i in 3" :key="`row2-${i}`" class="jindan-item">
-            <img src="@/static/ticket/jindan.png" alt="金蛋" class="jindan-img" />
-          </div>
+          <JindanItem v-for="i in 3" :key="`row2-${i}`" @click="handleJindanClick(2, i)" />
         </div>
 
         <div class="jindan-row">
-          <div v-for="i in 3" :key="`row3-${i}`" class="jindan-item">
-            <img src="@/static/ticket/jindan.png" alt="金蛋" class="jindan-img" />
-          </div>
+          <JindanItem v-for="i in 3" :key="`row3-${i}`" @click="handleJindanClick(3, i)" />
         </div>
       </div>
 
@@ -30,7 +24,7 @@
 
     <!-- 进度条 -->
     <div class="progress-wrapper">
-      <Progress :percentage="50" />
+      <Progress :percentage="progressPercentage" />
     </div>
 
     <!-- 中奖列表 -->
@@ -64,14 +58,28 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
+import { useTicketStore } from '@/store/modules/ticket'
 import Progress from '../progress.vue'
 import Wins from '../wins.vue'
 import PopupSmall from '../PopupSmall.vue'
 import PopupBig from '../PopupBig.vue'
+import JindanItem from './JindanItem.vue'
+
+const ticketStore = useTicketStore()
 
 const smallPopupVisible = ref(false)
 const bigPopupVisible = ref(false)
+
+// 获取当前票券的进度数据
+const currentTicket = computed(() => ticketStore.getCurrentTicket())
+const currentRowId = computed(() => currentTicket.value?.rowId || 0)
+
+// 计算进度百分比
+const progressPercentage = computed(() => {
+  if (!currentRowId.value) return 0
+  return ticketStore.calculateProgressPercentage(currentRowId.value)
+})
 
 const rewardsList = ref([
   {
@@ -117,6 +125,27 @@ const handleBigAction = () => {
   console.log('大弹窗按钮点击')
   bigPopupVisible.value = false
 }
+
+// 点击金蛋事件处理
+const handleJindanClick = (row: number, index: number) => {
+  console.log(`点击了第 ${row} 排第 ${index} 个金蛋`)
+}
+
+// 获取票券进度数据
+const loadProgressData = async () => {
+  if (!currentRowId.value) return
+  await ticketStore.fetchTicketProgress(currentRowId.value)
+}
+
+onMounted(() => {
+  loadProgressData()
+})
+
+watch(currentRowId, (newRowId) => {
+  if (newRowId) {
+    loadProgressData()
+  }
+})
 </script>
 
 <style lang="scss" scoped>
@@ -157,21 +186,6 @@ const handleBigAction = () => {
         justify-content: center;
         align-items: center;
         gap: 15px;
-
-        .jindan-item {
-          width: 80px;
-          height: 92px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-
-          .jindan-img {
-            width: 100%;
-            height: 100%;
-            object-fit: contain;
-          }
-        }
       }
     }
 
