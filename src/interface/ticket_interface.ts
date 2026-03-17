@@ -18,6 +18,20 @@ export interface TicketMbTicketListRes {
     name: string
   }>
   rowId: number // 票券id
+  status: number // 状态：0-草稿，1-发行中，2-已停发，3-过期
+  bindData: {
+    bindWithdrawalAccount: number //是否绑定出款账号 0否 1是
+    bindWithdrawalName: number //是否绑定出款姓名 0否 1是
+  }
+  completeInfo: {
+    completeWhatsapp: number //是否完善Whatsapp 0否 1是
+    completeFacebook: number //是否完善Facebook 0否 1是
+    completeTelegram: number //是否完善Telegram 0否 1是
+  }
+  completeVerification: {
+    verifyPhone: number //是否验证手机号码 0否 1是
+  }
+  conditionType: number[] //条件类型列表：1-充值，2-打码，3-亏损，4-邀请注册 可以多选，例如：[1, 2] 表示同时设置充值和打码条件
 }
 
 // 会员票券查询  响应数据
