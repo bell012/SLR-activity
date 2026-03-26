@@ -1,7 +1,7 @@
 <script setup lang="ts">
+import backIcon from '@/assets/svg/checkin/back-icon.png'
 import { checkinApi, ticketApi } from '@/api'
 import type { OnlineListItem } from '@/api/checkin'
-import backIcon from '@/assets/png/checkin/back-icon.png'
 import { useAppStore } from '@/store/modules/app'
 import { showToast } from 'vant'
 import { computed, onMounted, ref } from 'vue'

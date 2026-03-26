@@ -4,7 +4,7 @@ import iconGoldenEgg from '@/assets/common/icon-golden-egg.svg'
 import iconLuckyWheel from '@/assets/common/icon-lucky-wheel.svg'
 import iconRedPacket from '@/assets/common/icon-red-packet.svg'
 import { TicketType } from '@/constants/ticket'
-import checkinTicketDefault from '@/assets/svg/checkin/checkin-ticket-default.svg'
+import checkinTicketDefault from '@/assets/svg/checkin/checkin-ticket-default.png'
 
 type BonusItem = {
   day?: number | string

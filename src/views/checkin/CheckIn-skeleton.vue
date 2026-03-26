@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import checkinBg from '@/assets/svg/checkin/checkin-bg.svg'
+import checkinBg from '@/assets/svg/checkin/checkin-bg.png'
 
 const props = defineProps<{
   background?: string
